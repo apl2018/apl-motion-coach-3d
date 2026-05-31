@@ -116,6 +116,18 @@ header{display:flex;align-items:center;justify-content:space-between;
 #spd-sel{background:rgba(255,255,255,.1);color:var(--txt);border:1px solid var(--border);
   border-radius:8px;padding:0 6px;font-size:11px;cursor:pointer;height:34px;flex-shrink:0}
 #file-name{font-size:10px;color:var(--txt2);max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0}
+/* 시크 바 (파일 모드 전용) */
+#seek-wrap{background:var(--card);border-top:1px solid var(--border);
+  padding:6px 10px;flex-shrink:0;display:none}
+#seek-wrap.on{display:block}
+.seek-row{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+#seek-bar{flex:1;height:4px;accent-color:var(--blue);cursor:pointer;border-radius:2px}
+#seek-time{font-size:10px;color:var(--txt2);white-space:nowrap;min-width:72px;text-align:right;font-variant-numeric:tabular-nums}
+#ref-msg{font-size:10px;line-height:1.4}
+.btn-ref{background:rgba(34,197,94,.15);color:var(--green);border:1px solid rgba(34,197,94,.3);font-size:11px;height:34px;padding:0 10px;white-space:nowrap}
+.btn-ref:active{opacity:.6}
+.btn-prev{background:rgba(255,255,255,.1);color:var(--txt);width:34px;height:34px;padding:0;font-size:14px;border:none;border-radius:8px;cursor:pointer}
+.btn-prev:active{opacity:.6}
 @media(max-width:380px){#right-panel{width:104px}.btn{font-size:10px}.btn-main{padding:0 12px}}
 </style>
 </head>
@@ -214,6 +226,18 @@ header{display:flex;align-items:center;justify-content:space-between;
     </div>
   </div>
 </div>
+
+<!-- 시크 바: 파일 모드에서 기준 자세 프레임 탐색 -->
+<div id="seek-wrap">
+  <div class="seek-row">
+    <button class="btn-prev" id="btn-preview">▶</button>
+    <input type="range" id="seek-bar" min="0" max="1000" value="0">
+    <span id="seek-time">0:00 / 0:00</span>
+    <button class="btn btn-ref" id="btn-capture-ref">👻 기준설정</button>
+  </div>
+  <div><span id="ref-msg" style="color:var(--txt2)"></span></div>
+</div>
+
 <div id="ctrl-bar">
   <button class="btn btn-src on" id="btn-cam">📷</button>
   <button class="btn btn-src" id="btn-file">📁</button>
@@ -344,6 +368,43 @@ function events(){
   document.querySelectorAll('.sp-btn').forEach(b=>b.onclick=()=>setSport(b.dataset.s));
   window.addEventListener('resize',resize);
   vid.addEventListener('ended',()=>{if(live&&src==='file')stop_ana();});
+
+  // ── 시크 바 이벤트 ──────────────────────────
+  let _isSeeking=false,_previewPlaying=false;
+
+  vid.onloadedmetadata=()=>{
+    if(src==='file'&&!live){
+      showSeekWrap(true);
+      $('seek-bar').value=0;
+      updateSeekUI();
+      setRefMsg(lang==='ko'?'🔍 슬라이더로 기준 자세 프레임을 찾고 👻 기준설정을 누르세요':'🔍 Scrub to the reference frame, then tap 👻','var(--txt2)');
+    }
+  };
+  vid.ontimeupdate=()=>{
+    if(!live&&!_isSeeking&&vid.duration){
+      $('seek-bar').value=(vid.currentTime/vid.duration)*1000;
+      updateSeekUI();
+    }
+  };
+  vid.onpause=()=>{if(!live){_previewPlaying=false;$('btn-preview').textContent='▶';}};
+  vid.onended=()=>{_previewPlaying=false;if(!live)$('btn-preview').textContent='▶';};
+
+  $('seek-bar').oninput=()=>{
+    _isSeeking=true;
+    if(vid.duration)vid.currentTime=($('seek-bar').value/1000)*vid.duration;
+    updateSeekUI();
+  };
+  $('seek-bar').onchange=()=>{_isSeeking=false;};
+
+  $('btn-preview').onclick=()=>{
+    if(!vid.src&&!vid.srcObject)return;
+    _previewPlaying=!_previewPlaying;
+    if(_previewPlaying)vid.play().catch(()=>{_previewPlaying=false;});
+    else vid.pause();
+    $('btn-preview').textContent=_previewPlaying?'⏸':'▶';
+  };
+
+  $('btn-capture-ref').onclick=captureRefAtFrame;
 }
 
 function setSport(s){
@@ -357,7 +418,15 @@ function setMode(mode,file){
   $('btn-cam').classList.toggle('on',mode==='camera');
   $('btn-file').classList.toggle('on',mode==='file');
   $('file-name').textContent='';
-  if(mode==='file'&&file){const url=URL.createObjectURL(file);vid.srcObject=null;vid.src=url;vid.load();}
+  if(mode==='camera'){
+    showSeekWrap(false);
+    vid.classList.remove('show');
+  }
+  if(mode==='file'&&file){
+    const url=URL.createObjectURL(file);
+    vid.srcObject=null;vid.src=url;vid.load();
+    vid.classList.add('show'); // 파일 로드 시 영상 프레임 표시
+  }
 }
 
 /* ── 시작/중지 ── */
@@ -367,6 +436,9 @@ async function start_ana(){
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}},audio:false});vid.srcObject=stream;vid.removeAttribute('src');await vid.play();}
     catch(e1){try{stream=await navigator.mediaDevices.getUserMedia({video:true,audio:false});vid.srcObject=stream;await vid.play();}catch(e2){alert('카메라 오류: '+e2.message);return;}}
   }else{vid.playbackRate=+$('spd-sel').value;vid.currentTime=0;await vid.play().catch(()=>{});}
+  // 파일 모드: 처음부터 분석 (기준 자세는 그대로 유지)
+  if(src==='file'){vid.currentTime=0;}
+  showSeekWrap(false);
   vid.classList.add('show');
   live=true;isPaused=false;
   wH=[];vH={};cur={};lastA={};lastLm=null;lastWlm=null;lastFrameT=0;
@@ -391,6 +463,8 @@ function stop_ana(){
   $('no-det').classList.add('on');
   $('pause-overlay').className='pause-overlay';
   ctx.clearRect(0,0,cvs.width,cvs.height);
+  // 파일 모드면 시크 바 다시 표시
+  if(src==='file')showSeekWrap(true);
 }
 
 /* ── 메인 루프 ── */
@@ -846,6 +920,60 @@ function lang_apply(){
   buildPts();buildRows();buildJoints();
 }
 function resize(){const w=$('vid-wrap');cvs.width=w.offsetWidth;cvs.height=w.offsetHeight;}
+
+/* ── 시크 바 UI 헬퍼 ── */
+function showSeekWrap(show){$('seek-wrap').classList.toggle('on',show);}
+function fmtTime(s){
+  if(!s||isNaN(s))return'0:00';
+  const m=Math.floor(s/60),sec=Math.floor(s%60);
+  return m+':'+(sec<10?'0':'')+sec;
+}
+function updateSeekUI(){
+  $('seek-time').textContent=fmtTime(vid.currentTime)+' / '+fmtTime(vid.duration);
+}
+function setRefMsg(txt,col){
+  const el=$('ref-msg');el.textContent=txt;el.style.color=col||'var(--txt2)';
+}
+
+/* ── 기준 자세 단일 프레임 캡처 ──────────────────────────────
+   파일을 열어 슬라이더로 원하는 프레임을 찾고 이 함수를 호출.
+   MediaPipe를 한 번만 실행해 그 프레임 랜드마크를 ghostLm2d/ghostWlm에 저장.
+   이후 ▶ 시작을 누르면 영상이 처음부터 재생되며 기준 골격이 오버레이됨.
+   기준 자세는 명시적으로 👻 버튼으로 해제하기 전까지 유지됨.
+   다른 파일로 바꾸어 분석해도 기준 자세는 계속 표시됨. */
+async function captureRefAtFrame(){
+  if(!det){setRefMsg(lang==='ko'?'⏳ 모델 로딩 중...':'⏳ Model loading...','var(--yellow)');return;}
+  if(!vid.videoWidth||vid.readyState<2){
+    setRefMsg(lang==='ko'?'⚠️ 영상을 먼저 로드하세요':'⚠️ Load a video first','var(--yellow)');return;
+  }
+  // 캡처 전 영상 정지
+  const wasPlaying=!vid.paused;if(wasPlaying)vid.pause();
+  // onseeked 이벤트 대기 (seek 중일 수 있음)
+  await new Promise(r=>setTimeout(r,80));
+  try{
+    const t=performance.now();
+    const res=det.detectForVideo(vid,t);
+    if(!res.landmarks||!res.landmarks.length){
+      setRefMsg(lang==='ko'?'⚠️ 포즈 미감지 — 전신이 보이는 프레임 선택':'⚠️ No pose — choose frame with full body','var(--yellow)');
+      if(wasPlaying)vid.play().catch(()=>{});
+      return;
+    }
+    ghostLm2d=res.landmarks[0].map(l=>({...l}));
+    ghostWlm=res.worldLandmarks[0].map(l=>({...l}));
+    showGhost=true;
+    // 캔버스에 기준 골격 미리보기
+    resize();ctx.clearRect(0,0,cvs.width,cvs.height);
+    const vr=getVidRect(cvs.width,cvs.height);
+    draw_ghost_on(ctx,vr,ghostLm2d,ghostWlm);
+    $('chip-ghost').style.display='';
+    $('btn-ghost').classList.add('on');
+    setRefMsg(lang==='ko'?'✅ 기준 자세 설정 완료! ▶ 시작을 눌러 처음부터 분석하세요.':'✅ Reference set! Press ▶ Start to analyze from beginning.','var(--green)');
+  }catch(e){
+    setRefMsg('❌ '+e.message,'var(--red)');
+  }
+  if(wasPlaying)vid.play().catch(()=>{});
+}
+
 init();
 </script>
 </body>
