@@ -79,11 +79,11 @@ header{display:flex;align-items:center;justify-content:space-between;
 #right-panel{width:132px;background:var(--card);border-left:1px solid var(--border);
   display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;scrollbar-width:none}
 #right-panel::-webkit-scrollbar{display:none}
-.rp-sec{padding:6px 8px;border-bottom:1px solid var(--border)}
-.rp-title{font-size:8px;color:var(--txt2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px;font-weight:700}
-.rp-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:3px}
-.rp-lbl{font-size:10px;color:var(--txt2);flex-shrink:0}
-.rp-val{font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;text-align:right}
+.rp-sec{padding:3px 6px;border-bottom:1px solid var(--border)}
+.rp-title{font-size:7px;color:var(--txt2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:2px;font-weight:700}
+.rp-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:1px}
+.rp-lbl{font-size:9px;color:var(--txt2);flex-shrink:0}
+.rp-val{font-size:10px;font-weight:700;font-variant-numeric:tabular-nums;text-align:right}
 .spd-bar{height:2px;background:rgba(255,255,255,.1);border-radius:1px;margin-top:1px;overflow:hidden}
 .spd-fill{height:100%;border-radius:1px;transition:width .08s}
 .pt-row{display:flex;align-items:center;gap:5px;margin-bottom:4px;cursor:pointer}
@@ -215,10 +215,6 @@ header{display:flex;align-items:center;justify-content:space-between;
       <div class="rp-title" id="rp-t-joint">관절 각도 (굴곡)</div>
       <div id="joint-wrap"></div>
     </div>
-    <div class="rp-sec">
-      <div class="rp-title" id="rp-t-ghost">기준 자세 사용법</div>
-      <div style="font-size:8px;color:var(--txt2);line-height:1.5" id="ghost-help"></div>
-    </div>
     <div class="rp-sec" id="track-sec">
       <div class="rp-title" id="rp-t-pts">추적 포인트</div>
       <div id="pt-wrap"></div>
@@ -293,6 +289,7 @@ let fN=0,fT=0,sport='GEN';
 // ── 기준 자세 (Ghost) ──────────────────────
 // 캡처 당시의 2D+3D 랜드마크를 모두 저장 → 캡처 위치에 고정 그림
 let ghostLm2d=null,ghostWlm=null,showGhost=false;
+let ghostFrameCanvas=null; // 기준 자세 시점의 실제 영상 프레임 저장
 // ── 일시정지 ──────────────────────────────
 let isPaused=false;
 // ── 회전 속도 ─────────────────────────────
@@ -352,12 +349,13 @@ function events(){
     if(!live)return;
     if(showGhost){
       // 해제
-      showGhost=false;ghostLm2d=null;ghostWlm=null;
+      showGhost=false;ghostLm2d=null;ghostWlm=null;ghostFrameCanvas=null;
     }else{
       // 캡처: 현재(또는 마지막) 프레임의 2D+3D 랜드마크 저장
       if(!lastLm||!lastWlm){alert(lang==='ko'?'포즈가 감지되지 않았습니다':'Pose not detected');return;}
-      ghostLm2d=lastLm.map(l=>({...l})); // 2D 좌표 딥카피
-      ghostWlm=lastWlm.map(l=>({...l})); // 3D 좌표 딥카피
+      ghostLm2d=lastLm.map(l=>({...l}));
+      ghostWlm=lastWlm.map(l=>({...l}));
+      ghostFrameCanvas=captureVideoFrame(); // 실제 영상 프레임 캡처
       showGhost=true;
     }
     $('chip-ghost').style.display=showGhost?'':'none';
@@ -583,50 +581,50 @@ function velLinear(wlm,t){
    vr = {x, y, w, h}  비디오 실제 영역
    2D 앱과 동일 디자인: lineWidth=3, radius=8
    ══════════════════════════════════════════ */
-function draw_sk_on(c,vr,lm,wlm){
-  const lw=Math.max(2.5,vr.h/220);
-  const kr=Math.max(7,vr.h/90);
+/* draw_sk_on — 선 굵기 얇게, 관절점 1/5 크기
+   liveCanvas: lw≈1, kr≈1.5
+   compCanvas(녹화): lw≈3, kr≈8 (고해상도에서 가시성 유지)  */
+function draw_sk_on(c,vr,lm,wlm,forRec){
+  const lw=forRec?Math.max(2.5,vr.h/250):Math.max(0.8,vr.h/700);
+  const kr=forRec?Math.max(6,vr.h/100):Math.max(1.2,vr.h/500);
   const px=i=>vr.x+lm[i].x*vr.w,py=i=>vr.y+lm[i].y*vr.h;
   const vi=i=>lm[i].visibility||0;
   BONES.forEach(([a,b])=>{
     if(vi(a)<0.3||vi(b)<0.3)return;
     const d=Math.max(-0.4,Math.min(0.4,(wlm[a].z+wlm[b].z)/2));
     c.beginPath();c.moveTo(px(a),py(a));c.lineTo(px(b),py(b));
-    c.strokeStyle=`rgba(100,160,255,${(0.60+d*0.10).toFixed(2)})`;c.lineWidth=lw;c.stroke();
+    c.strokeStyle=`rgba(100,160,255,${(0.65+d*0.10).toFixed(2)})`;c.lineWidth=lw;c.stroke();
   });
   const mshx=vr.x+(lm[11].x+lm[12].x)/2*vr.w,mshy=vr.y+(lm[11].y+lm[12].y)/2*vr.h;
   const mhx=vr.x+(lm[23].x+lm[24].x)/2*vr.w,mhy=vr.y+(lm[23].y+lm[24].y)/2*vr.h;
-  c.setLineDash([6,4]);c.beginPath();c.moveTo(mhx,mhy);c.lineTo(mshx,mshy);
-  c.strokeStyle='rgba(250,230,80,.6)';c.lineWidth=lw*0.8;c.stroke();c.setLineDash([]);
+  c.setLineDash([4,3]);c.beginPath();c.moveTo(mhx,mhy);c.lineTo(mshx,mshy);
+  c.strokeStyle='rgba(250,230,80,.55)';c.lineWidth=Math.max(0.6,lw*0.7);c.stroke();c.setLineDash([]);
   for(let i=0;i<lm.length;i++){
     if(vi(i)<0.35)continue;
-    const z=wlm[i].z;
     c.beginPath();c.arc(px(i),py(i),kr,0,Math.PI*2);
     c.fillStyle=KP_COL[i]||'rgba(200,200,200,.7)';c.fill();
-    c.strokeStyle='rgba(0,0,0,.4)';c.lineWidth=lw*0.7;c.stroke();
-    if(Math.abs(z)>0.06){
-      c.beginPath();c.arc(px(i),py(i),kr+2+Math.abs(z)*14,0,Math.PI*2);
-      c.strokeStyle=z<0?'rgba(0,200,255,.35)':'rgba(255,120,0,.25)';c.lineWidth=1.5;c.stroke();
-    }
   }
 }
 
-/* ── 기준 자세 그리기 ── 캡처 당시 위치에 초록 고정 오버레이 ── */
-function draw_ghost_on(c,vr,gLm,gWlm){
-  // gLm: 캡처한 2D 랜드마크 → 이 좌표로 그림 (현재 프레임 위치 아님)
-  c.globalAlpha=0.5;
-  const px=i=>vr.x+gLm[i].x*vr.w,py=i=>vr.y+gLm[i].y*vr.h,vi=i=>gLm[i].visibility||0;
-  BONES.forEach(([a,b])=>{
-    if(vi(a)<0.3||vi(b)<0.3)return;
-    c.beginPath();c.moveTo(px(a),py(a));c.lineTo(px(b),py(b));
-    c.strokeStyle='rgba(0,255,180,.85)';c.lineWidth=3;c.stroke();
-  });
-  for(let i=0;i<Math.min(33,gLm.length);i++){
-    if(vi(i)<0.35)continue;
-    c.beginPath();c.arc(px(i),py(i),8,0,Math.PI*2);
-    c.fillStyle='rgba(0,255,180,.8)';c.fill();
+/* ── 기준 자세: 캡처 시점 영상 프레임을 흐리게 오버레이 ──
+   스켈레톤 대신 실제 영상을 반투명+블러로 표시
+   → 선수의 실제 자세가 그대로 보임 */
+function captureVideoFrame(){
+  if(!vid.videoWidth||vid.readyState<2)return null;
+  const oc=document.createElement('canvas');
+  oc.width=vid.videoWidth;oc.height=vid.videoHeight;
+  oc.getContext('2d').drawImage(vid,0,0,oc.width,oc.height);
+  return oc;
+}
+function draw_ghost_on(c,vr,_gLm,_gWlm){
+  // 영상 프레임 오버레이 (흐리게)
+  if(ghostFrameCanvas){
+    c.globalAlpha=0.40;
+    try{c.filter='blur(2px)';}catch(e){}
+    c.drawImage(ghostFrameCanvas,vr.x,vr.y,vr.w,vr.h);
+    try{c.filter='none';}catch(e){}
+    c.globalAlpha=1;
   }
-  c.globalAlpha=1;
 }
 
 function draw_arr_on(c,vr,lm,wlm){
@@ -718,39 +716,73 @@ function drawCompFrame(){
   // 기준 자세 (캡처 위치에 고정)
   if(showGhost&&ghostLm2d)draw_ghost_on(compCtx,vr,ghostLm2d,ghostWlm);
   // 스켈레톤
-  if(lastLm&&lastWlm){draw_sk_on(compCtx,vr,lastLm,lastWlm);draw_arr_on(compCtx,vr,lastLm,lastWlm);}
-  // 회전 속도 그래프 (영상 하단)
-  draw_graph_on_comp(compCtx,vr);
-  // 데이터 패널 (우측)
+  if(lastLm&&lastWlm){draw_sk_on(compCtx,vr,lastLm,lastWlm,true);draw_arr_on(compCtx,vr,lastLm,lastWlm);}
+  // 데이터 패널 (우측) — 그래프 포함
   draw_comp_panel(compCtx,compW,compH,panW);
 }
 
-/* 녹화 영상 하단 그래프 */
+/* 녹화 영상 하단 그래프 + 최고 어깨/골반 각속도 표시 */
 function draw_graph_on_comp(c,vr){
-  const gH=Math.round(vr.h*0.12);
-  const gY=vr.y+vr.h-gH;
-  const t=lastFrameT||performance.now();
-  const st=t-GRAPH_MS;
-  c.fillStyle='rgba(9,9,15,.82)';c.fillRect(vr.x,gY,vr.w,gH);
-  c.strokeStyle='rgba(255,255,255,.08)';c.lineWidth=1;
-  [.33,.66].forEach(y=>{c.beginPath();c.moveTo(vr.x,gY+gH*y);c.lineTo(vr.x+vr.w,gY+gH*y);c.stroke();});
-  // 어깨 각속도
+  const ko=lang==='ko';
+  // 높이: 기본 그래프 + 최고속도 2행
+  const fs=Math.max(10,Math.round(vr.h*0.022));
+  const peakRowH=Math.round(fs*1.7);  // 최고속도 행 높이
+  const graphH=Math.round(vr.h*0.16); // 그래프 영역
+  const totalH=graphH+peakRowH*2+Math.round(vr.h*0.01);
+  const gY=vr.y+vr.h-totalH;
+  const graphY=gY;
+  const peakY1=graphY+graphH;
+  const peakY2=peakY1+peakRowH;
+
+  // 배경 전체
+  c.fillStyle='rgba(9,9,15,.85)';c.fillRect(vr.x,gY,vr.w,totalH);
+  // 그래프 내부 가이드 선
+  c.strokeStyle='rgba(255,255,255,.07)';c.lineWidth=1;
+  [.33,.67].forEach(r=>{c.beginPath();c.moveTo(vr.x,graphY+graphH*r);c.lineTo(vr.x+vr.w,graphY+graphH*r);c.stroke();});
+  // 그래프와 최고속도 구분선
+  c.strokeStyle='rgba(255,255,255,.15)';
+  c.beginPath();c.moveTo(vr.x,peakY1);c.lineTo(vr.x+vr.w,peakY1);c.stroke();
+
+  const t=lastFrameT||performance.now(),st=t-GRAPH_MS;
+  const lw=Math.max(1.5,vr.h/400);
   const drawLine=(hist,col)=>{
     const vis=hist.filter(e=>e.t>=st);if(vis.length<2)return;
     c.beginPath();let f=true;
     vis.forEach(e=>{
-      const x=vr.x+((e.t-st)/GRAPH_MS)*vr.w,y=gY+gH-Math.min(1,e.v/MAX_ANG_VEL)*gH;
+      const x=vr.x+((e.t-st)/GRAPH_MS)*vr.w;
+      const y=graphY+graphH-Math.min(1,e.v/MAX_ANG_VEL)*graphH;
       f?(c.moveTo(x,y),f=false):c.lineTo(x,y);
     });
-    c.strokeStyle=col;c.lineWidth=Math.max(1.5,vr.h/400);c.stroke();
+    c.strokeStyle=col;c.lineWidth=lw;c.stroke();
   };
-  drawLine(angVelH.sh,'#a855f7cc');drawLine(angVelH.hip,'#f97316cc');
-  const fs=Math.max(9,Math.round(gH*0.28));
-  c.font=`${fs}px -apple-system,sans-serif`;c.textAlign='left';
-  c.fillStyle='#a855f7';c.fillText(lang==='ko'?'어깨':'Sh',vr.x+4,gY+fs+2);
-  c.fillStyle='#f97316';c.fillText(lang==='ko'?'골반':'Hip',vr.x+4+fs*3,gY+fs+2);
-  c.textAlign='right';c.fillStyle='rgba(255,255,255,.3)';
-  c.fillText(MAX_ANG_VEL+'°/s',vr.x+vr.w-3,gY+fs+2);
+  drawLine(angVelH.sh,'#a855f7cc');
+  drawLine(angVelH.hip,'#f97316cc');
+
+  // 피크 수평 점선
+  const drawPeakLine=(val,col)=>{
+    const py=graphY+graphH-Math.min(1,val/MAX_ANG_VEL)*graphH;
+    c.setLineDash([4,4]);c.beginPath();c.moveTo(vr.x,py);c.lineTo(vr.x+vr.w,py);
+    c.strokeStyle=col.replace('cc','55');c.lineWidth=1;c.stroke();c.setLineDash([]);
+  };
+  if(peakAngVel.sh>0)drawPeakLine(peakAngVel.sh,'#a855f7cc');
+  if(peakAngVel.hip>0)drawPeakLine(peakAngVel.hip,'#f97316cc');
+
+  // 그래프 상단 범례
+  c.font=`bold ${Math.round(fs*0.8)}px -apple-system,sans-serif`;c.textAlign='left';
+  c.fillStyle='#a855f7';c.fillText(ko?'어깨':'Sh',vr.x+5,graphY+Math.round(fs*0.9)+2);
+  c.fillStyle='#f97316';c.fillText(ko?'골반':'Hip',vr.x+5+Math.round(fs*2.2),graphY+Math.round(fs*0.9)+2);
+  c.textAlign='right';c.fillStyle='rgba(255,255,255,.28)';
+  c.fillText(MAX_ANG_VEL+'°/s',vr.x+vr.w-4,graphY+Math.round(fs*0.9)+2);
+
+  // 최고 어깨 행
+  const lb=(txt,val,col,y)=>{
+    c.textAlign='left';c.font=`${Math.round(fs*0.85)}px -apple-system,sans-serif`;
+    c.fillStyle='rgba(255,255,255,.45)';c.fillText(txt,vr.x+6,y);
+    c.textAlign='right';c.font=`bold ${fs}px -apple-system,sans-serif`;
+    c.fillStyle=col;c.fillText(Math.round(val)+'°/s',vr.x+vr.w-5,y);
+  };
+  lb(ko?'최고 어깨':'Peak Sh',peakAngVel.sh,'#a855f7',peakY1+Math.round(peakRowH*0.72));
+  lb(ko?'최고 골반':'Peak Hip',peakAngVel.hip,'#f97316',peakY2+Math.round(peakRowH*0.72));
 }
 
 function draw_comp_panel(c,W,H,panW){
@@ -801,11 +833,52 @@ function draw_comp_panel(c,W,H,panW){
     spJ.forEach(j=>{if(y>H-pad*4)return;row(ko?j.ko:j.en,(lastA[j.id]||0)+'°',j.col);});
     y+=pad*0.5;
   }
-  if(y<H-pad*5){
-    c.font=`${fsS}px -apple-system,sans-serif`;c.fillStyle='rgba(255,255,255,.3)';
-    c.fillText((ko?'최고 어깨: ':'PkSh: ')+Math.round(peakAngVel.sh)+'°/s',px,H-pad*2);
-    c.fillText((ko?'최고 골반: ':'PkHip: ')+Math.round(peakAngVel.hip)+'°/s',px,H-pad*0.4);
+  // ── 패널 하단: 그래프 + 최고 어깨/골반 ──────────────────
+  const pkRowH=Math.round(fsS*1.5);            // 최고속도 1행 높이
+  const pkTotalH=pkRowH*2+pad;                 // 최고속도 2행 총 높이
+  const gBotY=H-pkTotalH-pad;                  // 그래프 하단 = 최고속도 바로 위
+  const gTopY=Math.max(y+pad,gBotY-Math.round(H*0.15)); // 그래프 상단
+  const gH2=gBotY-gTopY;                       // 그래프 실제 높이
+  const gW2=panW-pad*2;                        // 그래프 너비
+
+  if(gH2>pad*2){
+    // 구분선
+    c.fillStyle='rgba(255,255,255,.1)';c.fillRect(px,gTopY-pad,gW2,1);
+    // 그래프 배경
+    c.fillStyle='rgba(255,255,255,.04)';c.fillRect(px,gTopY,gW2,gH2);
+    // 각속도 선
+    const t2=lastFrameT||performance.now(),st=t2-GRAPH_MS;
+    const drawLP=(hist,col)=>{
+      const vis=hist.filter(e=>e.t>=st);if(vis.length<2)return;
+      c.beginPath();let f=true;
+      vis.forEach(e=>{
+        const x=px+((e.t-st)/GRAPH_MS)*gW2;
+        const y2=gTopY+gH2-Math.min(1,e.v/MAX_ANG_VEL)*gH2;
+        f?(c.moveTo(x,y2),f=false):c.lineTo(x,y2);
+      });
+      c.strokeStyle=col;c.lineWidth=Math.max(1.5,H/500);c.stroke();
+    };
+    drawLP(angVelH.sh,'#a855f7cc');
+    drawLP(angVelH.hip,'#f97316cc');
+    // 그래프 범례
+    const fsG=Math.round(fsS*0.82);
+    c.font=`${fsG}px -apple-system,sans-serif`;c.textAlign='left';
+    c.fillStyle='#a855f7';c.fillText(ko?'어깨':'Sh',px+3,gTopY+fsG+2);
+    c.fillStyle='#f97316';c.fillText(ko?'골반':'Hip',px+3+fsG*2.8,gTopY+fsG+2);
+    c.textAlign='right';c.fillStyle='rgba(255,255,255,.25)';
+    c.fillText(MAX_ANG_VEL+'°/s',W-pad+panW/2,gTopY+fsG+2);
+    c.textAlign='left';
   }
+
+  // 최고 어깨 / 최고 골반
+  const lbPk=(txt,val,col,y2)=>{
+    c.font=`${fsS}px -apple-system,sans-serif`;c.fillStyle='rgba(255,255,255,.5)';c.textAlign='left';
+    c.fillText(txt,px,y2);
+    c.font=`bold ${fsS}px -apple-system,sans-serif`;c.fillStyle=col;c.textAlign='right';
+    c.fillText(Math.round(val)+'°/s',W-pad,y2);c.textAlign='left';
+  };
+  lbPk(ko?'최고 어깨':'Peak Sh',peakAngVel.sh,'#a855f7',gBotY+Math.round(pkRowH*0.8));
+  lbPk(ko?'최고 골반':'Peak Hip',peakAngVel.hip,'#f97316',gBotY+Math.round(pkRowH*1.9));
 }
 
 /* ── 녹화 ── */
@@ -907,10 +980,6 @@ function lang_apply(){
   $('rp-t-pkangv').textContent=ko?'최고 회전속도':'Peak Speed';
   $('rp-pksh').textContent=ko?'어깨':'Shoulder';$('rp-pkhip').textContent=ko?'골반':'Hip';
   $('rp-t-joint').textContent=ko?'관절 각도(굴곡)':'Joint Angle(flex)';
-  $('rp-t-ghost').textContent=ko?'👻 기준 자세 사용법':'👻 Reference Guide';
-  $('ghost-help').textContent=ko
-    ?'① ⏸ 눌러 영상 정지\n② 기준 자세가 화면에 나오면 👻 클릭\n③ 초록 골격이 고정됨\n④ ▶ 눌러 재생 계속'
-    :'① Press ⏸ to pause\n② When pose is ready, tap 👻\n③ Green skeleton freezes\n④ Press ▶ to resume';
   $('rp-t-pts').textContent=ko?'추적 포인트':'Track Points';
   $('rp-t-alert').textContent=ko?'분석 피드백':'Feedback';
   $('no-det').textContent=ko?'📷 전신이 보이도록 서 주세요':'📷 Stand so full body is visible';
@@ -960,8 +1029,9 @@ async function captureRefAtFrame(){
     }
     ghostLm2d=res.landmarks[0].map(l=>({...l}));
     ghostWlm=res.worldLandmarks[0].map(l=>({...l}));
+    ghostFrameCanvas=captureVideoFrame(); // 실제 영상 프레임 저장
     showGhost=true;
-    // 캔버스에 기준 골격 미리보기
+    // 캔버스에 기준 자세 미리보기
     resize();ctx.clearRect(0,0,cvs.width,cvs.height);
     const vr=getVidRect(cvs.width,cvs.height);
     draw_ghost_on(ctx,vr,ghostLm2d,ghostWlm);
