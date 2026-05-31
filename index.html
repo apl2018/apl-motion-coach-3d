@@ -17,12 +17,12 @@ body{background:var(--bg);color:var(--txt);font-family:-apple-system,'Helvetica 
 header{display:flex;align-items:center;justify-content:space-between;
   padding:5px 12px;background:var(--card);border-bottom:1px solid var(--border);
   flex-shrink:0;min-height:38px}
-.h-logo{font-size:13px;font-weight:900;letter-spacing:.5px}
+.h-logo{font-size:11px;font-weight:900;letter-spacing:.3px}
 .h-logo .accent{color:var(--sport);transition:color .3s}
 .h-ver{font-size:9px;opacity:.4;margin-left:4px}
-.h-right{display:flex;gap:6px}
+.h-right{display:flex;gap:5px}
 .h-btn{background:rgba(255,255,255,.08);color:var(--txt2);border:1px solid var(--border);
-  border-radius:8px;padding:5px 10px;font-size:11px;cursor:pointer;min-height:30px}
+  border-radius:8px;padding:5px 9px;font-size:11px;cursor:pointer;min-height:30px}
 .h-btn:active{opacity:.6}
 #sport-bar{display:flex;gap:4px;padding:4px 10px;background:var(--card);
   border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto;
@@ -58,9 +58,9 @@ header{display:flex;align-items:center;justify-content:space-between;
 .chip.blue{border-color:var(--blue);color:var(--blue)}
 .chip.red{border-color:var(--red);color:var(--red);animation:blink 1s ease-in-out infinite}
 .chip.green{border-color:var(--green);color:var(--green)}
+.chip.yellow{border-color:var(--yellow);color:var(--yellow)}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
-
-/* ── 실시간 데이터 오버레이 ── */
+/* 실시간 데이터 오버레이 */
 #data-ov{position:absolute;top:8px;right:8px;
   background:rgba(0,0,0,.78);border:1px solid rgba(255,255,255,.15);
   border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;gap:4px;
@@ -69,20 +69,13 @@ header{display:flex;align-items:center;justify-content:space-between;
 .do-lbl{font-size:10px;color:var(--txt2);white-space:nowrap}
 .do-val{font-size:13px;font-weight:800;font-variant-numeric:tabular-nums}
 .do-div{height:1px;background:rgba(255,255,255,.1);margin:1px 0}
-
-/* ── 그래프 오버레이 ── */
-#graph-ov{position:absolute;bottom:0;left:0;right:0;height:66px;
-  background:rgba(9,9,15,.85);border-top:1px solid rgba(255,255,255,.1);
-  padding:4px 8px 3px;transition:transform .25s;pointer-events:none}
-#graph-ov.hidden{transform:translateY(100%)}
-#graph-hdr{font-size:9px;color:var(--txt2);margin-bottom:2px;
-  display:flex;align-items:center;justify-content:space-between}
-#graph-legend{display:flex;gap:8px;overflow:hidden}
-.g-leg{display:flex;align-items:center;gap:3px;font-size:9px;color:var(--txt2);white-space:nowrap}
-.g-dot{width:8px;height:2px;border-radius:1px;flex-shrink:0}
-#graph-cvs{width:100%;display:block}
-
-/* ── 오른쪽 패널 ── */
+/* 일시정지 오버레이 */
+#pause-overlay{position:absolute;inset:0;pointer-events:none;display:none;
+  align-items:center;justify-content:center}
+#pause-overlay.on{display:flex}
+.pause-badge{background:rgba(0,0,0,.7);border:2px solid var(--yellow);border-radius:14px;
+  padding:10px 20px;font-size:14px;font-weight:700;color:var(--yellow)}
+/* 오른쪽 패널 */
 #right-panel{width:132px;background:var(--card);border-left:1px solid var(--border);
   display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;scrollbar-width:none}
 #right-panel::-webkit-scrollbar{display:none}
@@ -101,8 +94,7 @@ header{display:flex;align-items:center;justify-content:space-between;
 .rp-alert.ok{background:rgba(34,197,94,.15);color:#22c55e}
 .rp-alert.warn{background:rgba(234,179,8,.15);color:#eab308}
 .rp-alert.bad{background:rgba(239,68,68,.15);color:#ef4444}
-
-/* ── 컨트롤 바 ── */
+/* 컨트롤 바 */
 #ctrl-bar{background:var(--card);border-top:1px solid var(--border);
   padding:5px 8px;display:flex;align-items:center;gap:5px;
   flex-shrink:0;overflow-x:auto;scrollbar-width:none;min-height:50px}
@@ -114,6 +106,8 @@ header{display:flex;align-items:center;justify-content:space-between;
 .btn-src.on{background:var(--blue);color:#fff}
 .btn-icon{background:rgba(255,255,255,.08);color:var(--txt2);font-size:15px;width:38px;padding:0}
 .btn-icon.on{background:rgba(34,197,94,.2);color:var(--green)}
+.btn-pause{background:rgba(234,179,8,.12);color:var(--yellow);border:1px solid rgba(234,179,8,.25)}
+.btn-pause.on{background:var(--yellow);color:#000}
 .btn-rec{background:rgba(239,68,68,.15);color:var(--red);border:1px solid rgba(239,68,68,.3)}
 .btn-rec.on{background:var(--red);color:#fff;border-color:var(--red)}
 .btn-main{background:var(--green);color:#fff;height:42px;padding:0 16px;font-size:13px;font-weight:700;border-radius:12px;margin-left:2px;flex-shrink:0}
@@ -122,12 +116,15 @@ header{display:flex;align-items:center;justify-content:space-between;
 #spd-sel{background:rgba(255,255,255,.1);color:var(--txt);border:1px solid var(--border);
   border-radius:8px;padding:0 6px;font-size:11px;cursor:pointer;height:34px;flex-shrink:0}
 #file-name{font-size:10px;color:var(--txt2);max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0}
-@media(max-width:380px){#right-panel{width:106px}.btn{font-size:10px}.btn-main{padding:0 12px}}
+@media(max-width:380px){#right-panel{width:104px}.btn{font-size:10px}.btn-main{padding:0 12px}}
 </style>
 </head>
 <body>
 <header>
-  <div><span class="h-logo">APL <span class="accent">3D</span></span><span class="h-ver">v5</span></div>
+  <div>
+    <span class="h-logo">APL Motion Coach <span class="accent">3D</span></span>
+    <span class="h-ver">v6</span>
+  </div>
   <div class="h-right">
     <button class="h-btn" id="btn-reset">↺</button>
     <button class="h-btn" id="btn-lang">KO</button>
@@ -150,11 +147,16 @@ header{display:flex;align-items:center;justify-content:space-between;
       <div class="load-sub">처음 1-2분 소요될 수 있습니다</div>
     </div>
     <div id="no-det" class="on"></div>
+    <!-- 일시정지 표시 -->
+    <div id="pause-overlay">
+      <div class="pause-badge" id="pause-badge">⏸ 일시정지 — 기준 자세 설정 후 ▶ 재생</div>
+    </div>
     <div id="info-bar">
       <div class="chip" id="chip-fps">-- fps</div>
       <div class="chip blue">3D</div>
       <div class="chip red" id="chip-rec" style="display:none">● REC</div>
       <div class="chip green" id="chip-ghost" style="display:none">👻 기준</div>
+      <div class="chip yellow" id="chip-pause" style="display:none">⏸ PAUSE</div>
     </div>
     <!-- 실시간 데이터 오버레이 -->
     <div id="data-ov">
@@ -164,13 +166,8 @@ header{display:flex;align-items:center;justify-content:space-between;
       <div class="do-div"></div>
       <div class="do-row"><span class="do-lbl" id="do-lbl-spine">척추</span><span class="do-val" id="do-spine" style="color:var(--cyan)">--°</span></div>
       <div class="do-div"></div>
-      <div class="do-row"><span class="do-lbl" id="do-lbl-shv">어깨속도</span><span class="do-val" id="do-shv" style="color:var(--purple)">--</span></div>
-      <div class="do-row"><span class="do-lbl" id="do-lbl-hipv">골반속도</span><span class="do-val" id="do-hipv" style="color:var(--orange)">--</span></div>
-    </div>
-    <!-- 그래프 오버레이 -->
-    <div id="graph-ov" class="hidden">
-      <div id="graph-hdr"><span id="graph-lbl"></span><div id="graph-legend"></div></div>
-      <canvas id="graph-cvs"></canvas>
+      <div class="do-row"><span class="do-lbl" id="do-lbl-shv">어깨°/s</span><span class="do-val" id="do-shv" style="color:var(--purple)">--</span></div>
+      <div class="do-row"><span class="do-lbl" id="do-lbl-hipv">골반°/s</span><span class="do-val" id="do-hipv" style="color:var(--orange)">--</span></div>
     </div>
   </div>
   <!-- 오른쪽 패널 -->
@@ -190,28 +187,28 @@ header{display:flex;align-items:center;justify-content:space-between;
       <div class="rp-row"><span class="rp-lbl" id="rp-spine">척추기울기</span><span class="rp-val" id="rv-spine">--°</span></div>
       <div class="rp-row"><span class="rp-lbl" id="rp-lean">전방기울기</span><span class="rp-val" id="rv-lean">--°</span></div>
     </div>
-    <!-- 회전 속도 (°/s) -->
     <div class="rp-sec">
-      <div class="rp-title" id="rp-t-angv">회전 속도</div>
+      <div class="rp-title" id="rp-t-angv">회전 속도 (°/s)</div>
       <div class="rp-row"><span class="rp-lbl" id="rp-shv">어깨</span><span class="rp-val" id="rv-shv" style="color:var(--purple)">--</span></div>
-      <div id="shv-bar-wrap"><div class="spd-bar"><div class="spd-fill" id="shv-fill" style="background:var(--purple)"></div></div></div>
+      <div class="spd-bar"><div class="spd-fill" id="shv-fill" style="background:var(--purple)"></div></div>
       <div class="rp-row" style="margin-top:3px"><span class="rp-lbl" id="rp-hipv">골반</span><span class="rp-val" id="rv-hipv" style="color:var(--orange)">--</span></div>
-      <div id="hipv-bar-wrap"><div class="spd-bar"><div class="spd-fill" id="hipv-fill" style="background:var(--orange)"></div></div></div>
-      <div style="margin-top:5px;font-size:8px;color:var(--txt2)" id="rp-angv-note">좌우어깨선·골반선 각도변화율</div>
+      <div class="spd-bar"><div class="spd-fill" id="hipv-fill" style="background:var(--orange)"></div></div>
     </div>
-    <!-- 최고 회전속도 -->
     <div class="rp-sec">
       <div class="rp-title" id="rp-t-pkangv">최고 회전속도</div>
       <div class="rp-row"><span class="rp-lbl" id="rp-pksh">어깨</span><span class="rp-val" id="rv-pksh" style="color:var(--purple)">--</span></div>
       <div class="rp-row"><span class="rp-lbl" id="rp-pkhip">골반</span><span class="rp-val" id="rv-pkhip" style="color:var(--orange)">--</span></div>
     </div>
     <div class="rp-sec" id="joint-sec" style="display:none">
-      <div class="rp-title" id="rp-t-joint">관절 각도</div>
+      <div class="rp-title" id="rp-t-joint">관절 각도 (굴곡)</div>
       <div id="joint-wrap"></div>
+    </div>
+    <div class="rp-sec">
+      <div class="rp-title" id="rp-t-ghost">기준 자세 사용법</div>
+      <div style="font-size:8px;color:var(--txt2);line-height:1.5" id="ghost-help"></div>
     </div>
     <div class="rp-sec" id="track-sec">
       <div class="rp-title" id="rp-t-pts">추적 포인트</div>
-      <div style="font-size:8px;color:var(--txt2);margin-bottom:4px" id="rp-pts-note">선택 부위 선형속도 표시</div>
       <div id="pt-wrap"></div>
       <div id="spd-rows"></div>
     </div>
@@ -222,14 +219,9 @@ header{display:flex;align-items:center;justify-content:space-between;
   <button class="btn btn-src" id="btn-file">📁</button>
   <span id="file-name"></span>
   <input type="file" id="file-input" accept="video/*" style="display:none">
-  <select id="spd-sel">
-    <option value="1">1×</option>
-    <option value="0.5">½×</option>
-    <option value="0.25">¼×</option>
-    <option value="0.125">⅛×</option>
-  </select>
-  <button class="btn btn-icon" id="btn-graph" title="그래프">📈</button>
-  <button class="btn btn-icon" id="btn-ghost" title="기준 자세 고정: 현재 골격을 반투명으로 고정해 이후 동작과 비교">👻</button>
+  <select id="spd-sel"><option value="1">1×</option><option value="0.5">½×</option><option value="0.25">¼×</option><option value="0.125">⅛×</option></select>
+  <button class="btn btn-pause" id="btn-pause">⏸</button>
+  <button class="btn btn-icon" id="btn-ghost" title="기준 자세: ⏸으로 멈추고 누르면 그 자세가 초록색으로 고정됩니다">👻</button>
   <button class="btn btn-rec" id="btn-rec">⏺ 녹화</button>
   <div class="sep"></div>
   <button class="btn btn-main" id="btn-main">▶ 시작</button>
@@ -244,10 +236,9 @@ const GRAPH_MS=5000,MAX_ANG_VEL=500,REC_MAX=1920,REC_BPS=12_000_000;
 const BONES=[[11,12],[23,24],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],
   [23,25],[25,27],[24,26],[26,28],[27,29],[28,30],[0,11],[0,12]];
 
-/* 추적 포인트 — 선형 속도(m/s), 선택적 표시용 */
 const TRACK=[
-  {id:'elbow',  ko:'팔꿈치', en:'Elbow',    idx:[13,14],col:'#06b6d4'},
-  {id:'knee',   ko:'무릎',   en:'Knee',     idx:[25,26],col:'#22c55e'},
+  {id:'elbow',ko:'팔꿈치',en:'Elbow',idx:[13,14],col:'#06b6d4'},
+  {id:'knee', ko:'무릎',  en:'Knee', idx:[25,26],col:'#22c55e'},
 ];
 const KP_COL={15:'#3b82f6',16:'#3b82f6',13:'#06b6d4',14:'#06b6d4',
   11:'#a855f7',12:'#a855f7',23:'#f97316',24:'#f97316',
@@ -257,10 +248,10 @@ const SPORTS={
   GEN:{ko:'일반',en:'General',col:'#3b82f6',joints:[],checks:[]},
   SPL:{ko:'SPL 스케이팅',en:'Skating',col:'#06b6d4',
     joints:[{id:'lknee',ko:'왼무릎',en:'L.Knee',pts:[23,25,27],col:'#22c55e'},{id:'rknee',ko:'오른무릎',en:'R.Knee',pts:[24,26,28],col:'#eab308'}],
-    checks:[{ko_ok:'무릎 굽힘 양호',ko_warn:'무릎 굽힘 부족',ko_bad:'과신전 주의',en_ok:'Knee bend OK',en_warn:'Bend more',en_bad:'Hyperextension!',fn:a=>a.lknee>10?(a.lknee>80?'ok':'warn'):'bad'}]},
+    checks:[{ko_ok:'무릎 굽힘 양호',ko_warn:'굽힘 부족',ko_bad:'과신전 주의',en_ok:'Knee bend OK',en_warn:'Bend more',en_bad:'Hyperextension!',fn:a=>a.lknee>10?(a.lknee>80?'ok':'warn'):'bad'}]},
   GPL:{ko:'골프',en:'Golf',col:'#22c55e',
     joints:[{id:'lknee',ko:'왼무릎',en:'L.Knee',pts:[23,25,27],col:'#22c55e'},{id:'lelbow',ko:'왼팔꿈치',en:'L.Elbow',pts:[11,13,15],col:'#06b6d4'}],
-    checks:[{ko_ok:'X-factor 우수',ko_warn:'회전 개선 필요',ko_bad:'회전 부족',en_ok:'X-factor excellent',en_warn:'Improve rotation',en_bad:'Too small',fn:a=>Math.abs(a.xf)>=25?'ok':Math.abs(a.xf)>=12?'warn':'bad'}]},
+    checks:[{ko_ok:'X-factor 우수',ko_warn:'회전 개선 필요',ko_bad:'회전 부족',en_ok:'X-factor great',en_warn:'Improve rotation',en_bad:'Too small',fn:a=>Math.abs(a.xf)>=25?'ok':Math.abs(a.xf)>=12?'warn':'bad'}]},
   BPL:{ko:'야구/농구',en:'Baseball/Bball',col:'#f97316',
     joints:[{id:'lknee',ko:'왼무릎',en:'L.Knee',pts:[23,25,27],col:'#22c55e'},{id:'rknee',ko:'오른무릎',en:'R.Knee',pts:[24,26,28],col:'#eab308'},{id:'lelbow',ko:'왼팔꿈치',en:'L.Elbow',pts:[11,13,15],col:'#06b6d4'},{id:'relbow',ko:'오른팔꿈치',en:'R.Elbow',pts:[12,14,16],col:'#a855f7'}],
     checks:[{ko_ok:'어깨 회전 양호',ko_warn:'어깨 회전 확인',ko_bad:'회전 부족',en_ok:'Shoulder OK',en_warn:'Check rotation',en_bad:'Insufficient',fn:a=>Math.abs(a.shR)>=30?'ok':Math.abs(a.shR)>=15?'warn':'bad'}]},
@@ -272,15 +263,19 @@ const SPORTS={
 /* ── 상태 ── */
 let det=null,live=false,src='camera',stream=null,raf=null,lang='ko';
 let wH=[],vH={},cur={},lastA={};
-let lastLm=null,lastWlm=null;
-let sel=new Set([]); // 추적 포인트 (elbow, knee 선택 가능)
+let lastLm=null,lastWlm=null,lastFrameT=0;
+let sel=new Set([]);
 let fN=0,fT=0,sport='GEN';
-let ghostLm=null,showGhost=false,showGraph=false;
-// 회전 속도 (°/s)
+// ── 기준 자세 (Ghost) ──────────────────────
+// 캡처 당시의 2D+3D 랜드마크를 모두 저장 → 캡처 위치에 고정 그림
+let ghostLm2d=null,ghostWlm=null,showGhost=false;
+// ── 일시정지 ──────────────────────────────
+let isPaused=false;
+// ── 회전 속도 ─────────────────────────────
 let angVel={sh:0,hip:0},peakAngVel={sh:0,hip:0};
 let angVelH={sh:[],hip:[]};
 let _prevA=null,_prevAt=0;
-// 녹화
+// ── 녹화 ──────────────────────────────────
 let recorder=null,recChunks=[],isRec=false,_compInterval=null;
 const compCvs=document.createElement('canvas');
 const compCtx=compCvs.getContext('2d');
@@ -288,7 +283,7 @@ let compW=1280,compH=720;
 
 const $=id=>document.getElementById(id);
 const vid=$('vid'),cvs=$('cvs'),ctx=cvs.getContext('2d');
-const gC=$('graph-cvs'),gX=gC.getContext('2d');
+const gC=$('graph-cvs')||{},gX=gC.getContext?gC.getContext('2d'):null;
 
 /* ── INIT ── */
 async function init(){
@@ -314,16 +309,37 @@ function events(){
   $('btn-main').onclick=()=>live?stop_ana():start_ana();
   $('spd-sel').onchange=()=>{if(vid.src||vid.srcObject)vid.playbackRate=+$('spd-sel').value;};
   $('btn-lang').onclick=()=>{lang=lang==='ko'?'en':'ko';lang_apply();};
-  $('btn-reset').onclick=()=>{peakAngVel={sh:0,hip:0};buildRows();updateAngVelPanel();};
-  $('btn-graph').onclick=()=>{showGraph=!showGraph;$('graph-ov').classList.toggle('hidden',!showGraph);$('btn-graph').classList.toggle('on',showGraph);};
+  $('btn-reset').onclick=()=>{peakAngVel={sh:0,hip:0};};
+
+  // ── 일시정지 버튼 ──
+  $('btn-pause').onclick=()=>{
+    if(!live)return;
+    isPaused=!isPaused;
+    if(src==='file'){isPaused?vid.pause():vid.play().catch(()=>{});}
+    $('btn-pause').className='btn btn-pause'+(isPaused?' on':'');
+    $('pause-overlay').className='pause-overlay'+(isPaused?' on':'');
+    $('chip-pause').style.display=isPaused?'':'none';
+    lang_apply();
+  };
+
+  // ── 기준 자세 버튼 ──
+  // 사용법: ⏸로 멈추거나, 원하는 순간에 누르면 그 프레임 골격이 초록 고정 오버레이로 남음
   $('btn-ghost').onclick=()=>{
     if(!live)return;
-    showGhost=!showGhost;
-    if(showGhost&&wH.length)ghostLm=[...wH[wH.length-1].wlm];
-    else{showGhost=false;ghostLm=null;}
+    if(showGhost){
+      // 해제
+      showGhost=false;ghostLm2d=null;ghostWlm=null;
+    }else{
+      // 캡처: 현재(또는 마지막) 프레임의 2D+3D 랜드마크 저장
+      if(!lastLm||!lastWlm){alert(lang==='ko'?'포즈가 감지되지 않았습니다':'Pose not detected');return;}
+      ghostLm2d=lastLm.map(l=>({...l})); // 2D 좌표 딥카피
+      ghostWlm=lastWlm.map(l=>({...l})); // 3D 좌표 딥카피
+      showGhost=true;
+    }
     $('chip-ghost').style.display=showGhost?'':'none';
     $('btn-ghost').classList.toggle('on',showGhost);
   };
+
   $('btn-rec').onclick=()=>isRec?stopRec():startRec();
   document.querySelectorAll('.sp-btn').forEach(b=>b.onclick=()=>setSport(b.dataset.s));
   window.addEventListener('resize',resize);
@@ -352,16 +368,20 @@ async function start_ana(){
     catch(e1){try{stream=await navigator.mediaDevices.getUserMedia({video:true,audio:false});vid.srcObject=stream;await vid.play();}catch(e2){alert('카메라 오류: '+e2.message);return;}}
   }else{vid.playbackRate=+$('spd-sel').value;vid.currentTime=0;await vid.play().catch(()=>{});}
   vid.classList.add('show');
-  live=true;wH=[];vH={};cur={};lastA={};lastLm=null;lastWlm=null;
+  live=true;isPaused=false;
+  wH=[];vH={};cur={};lastA={};lastLm=null;lastWlm=null;lastFrameT=0;
   angVel={sh:0,hip:0};angVelH={sh:[],hip:[]};_prevA=null;_prevAt=0;
   fN=0;fT=performance.now();
   $('btn-main').textContent=lang==='ko'?'■ 중지':'■ Stop';
   $('btn-main').className='btn btn-main stop';
   $('no-det').classList.remove('on');
+  $('btn-pause').className='btn btn-pause';
+  $('pause-overlay').className='pause-overlay';
+  $('chip-pause').style.display='none';
   loop();
 }
 function stop_ana(){
-  live=false;if(isRec)stopRec();
+  live=false;isPaused=false;if(isRec)stopRec();
   if(raf){cancelAnimationFrame(raf);raf=null;}
   if(src==='camera'&&stream){stream.getTracks().forEach(t=>t.stop());stream=null;vid.srcObject=null;}
   else vid.pause();
@@ -369,42 +389,50 @@ function stop_ana(){
   $('btn-main').textContent=lang==='ko'?'▶ 시작':'▶ Start';
   $('btn-main').className='btn btn-main';
   $('no-det').classList.add('on');
+  $('pause-overlay').className='pause-overlay';
   ctx.clearRect(0,0,cvs.width,cvs.height);
 }
 
-/* ── 루프 ── */
+/* ── 메인 루프 ── */
 function loop(){
   if(!live)return;
   const t=performance.now();
-  if(vid.readyState>=2&&!vid.paused){
-    try{const r=det.detectForVideo(vid,t);frame(r,t);}catch(e){console.warn(e);}
-    fN++;if(t-fT>=1000){$('chip-fps').textContent=Math.round(fN*1000/(t-fT))+' fps';fN=0;fT=t;}
+  if(!isPaused){
+    if(vid.readyState>=2&&!vid.paused){
+      try{const r=det.detectForVideo(vid,t);frame(r,t);}catch(e){console.warn(e);}
+      fN++;if(t-fT>=1000){$('chip-fps').textContent=Math.round(fN*1000/(t-fT))+' fps';fN=0;fT=t;}
+    }
+  }else if(lastLm&&lastWlm){
+    // 일시정지: 마지막 프레임 재렌더 (분석값 그대로 표시)
+    resize();ctx.clearRect(0,0,cvs.width,cvs.height);
+    const vr=getVidRect(cvs.width,cvs.height);
+    if(showGhost&&ghostLm2d)draw_ghost_on(ctx,vr,ghostLm2d,ghostWlm);
+    draw_sk_on(ctx,vr,lastLm,lastWlm);
+    update_data_ov(lastA);
   }
   raf=requestAnimationFrame(loop);
 }
 
-/* ── 프레임 ── */
+/* ── 프레임 처리 ── */
 function frame(res,t){
   resize();ctx.clearRect(0,0,cvs.width,cvs.height);
   if(!res.worldLandmarks||!res.worldLandmarks.length){$('no-det').classList.add('on');return;}
   $('no-det').classList.remove('on');
   const lm=res.landmarks[0],wlm=res.worldLandmarks[0];
-  lastLm=lm;lastWlm=wlm;
+  lastLm=lm;lastWlm=wlm;lastFrameT=t;
   wH.push({wlm,t});
   const cut=t-GRAPH_MS-2000;while(wH.length>1&&wH[0].t<cut)wH.shift();
   const vr=getVidRect(cvs.width,cvs.height);
-  if(showGhost&&ghostLm)draw_ghost_on(ctx,vr,lm,ghostLm);
+  if(showGhost&&ghostLm2d)draw_ghost_on(ctx,vr,ghostLm2d,ghostWlm);
   draw_sk_on(ctx,vr,lm,wlm);
   draw_arr_on(ctx,vr,lm,wlm);
   const a=angles3d(wlm);
-  velLinear(wlm,t);
-  computeAngVel(a,t);
+  velLinear(wlm,t);computeAngVel(a,t);
   lastA=a;
   update_panel(a);update_data_ov(a);
-  if(showGraph)draw_graph(t);
 }
 
-/* ── 비디오 레터박스 보정: 스켈레톤이 영상 위에 정확히 겹치도록 ── */
+/* ── 비디오 레터박스 보정 ── */
 function getVidRect(W,H){
   const vW=vid.videoWidth,vH=vid.videoHeight;
   if(!vW||!vH)return{x:0,y:0,w:W,h:H};
@@ -431,7 +459,6 @@ function angles3d(w){
   const sl=Math.hypot(sx,sy,sz);
   const sp=sl>0.05?Math.round(Math.acos(Math.min(1,Math.abs(sy)/sl))*R):0;
   const fl=sl>0.05?Math.round(Math.atan2(sz,Math.abs(sy))*R):0;
-  /* 무릎/팔꿈치 각도: 0°=완전히 펴짐, 구부릴수록 증가 (flexion angle) */
   const lknee=180-angle3pts(w[23],w[25],w[27]);
   const rknee=180-angle3pts(w[24],w[26],w[28]);
   const lelbow=180-angle3pts(w[11],w[13],w[15]);
@@ -439,19 +466,15 @@ function angles3d(w){
   return{shR,hipR,xf:Math.round(xf),sp,fl,lknee,rknee,lelbow,relbow};
 }
 
-/* ── 회전 속도 계산 (°/s) ──
-   어깨: 양쪽 어깨 연결선이 초당 몇 도 회전하는지 (수평면 상 축회전 속도)
-   골반: 양쪽 골반 연결선 동일 방식
-   EMA 스무딩(α=0.35) 적용 */
+/* ── 회전 각속도 (°/s) ── */
 function computeAngVel(a,t){
   if(_prevA&&_prevAt>0){
     const dt=(t-_prevAt)/1000;
     if(dt>0&&dt<0.2){
       let dSh=Math.abs(a.shR-_prevA.shR);if(dSh>180)dSh=360-dSh;
       let dHip=Math.abs(a.hipR-_prevA.hipR);if(dHip>180)dHip=360-dHip;
-      const rawSh=dSh/dt,rawHip=dHip/dt;
-      angVel.sh=angVel.sh*0.65+rawSh*0.35;
-      angVel.hip=angVel.hip*0.65+rawHip*0.35;
+      angVel.sh=angVel.sh*0.65+(dSh/dt)*0.35;
+      angVel.hip=angVel.hip*0.65+(dHip/dt)*0.35;
     }
   }
   _prevA=a;_prevAt=t;
@@ -463,7 +486,7 @@ function computeAngVel(a,t){
   if(angVel.hip>peakAngVel.hip)peakAngVel.hip=angVel.hip;
 }
 
-/* ── 선형 속도 (추적 포인트용) ── */
+/* ── 선형 속도 ── */
 function velLinear(wlm,t){
   if(wH.length<2)return;
   const prev=wH[wH.length-2],dt=(t-prev.t)/1000;
@@ -481,39 +504,55 @@ function velLinear(wlm,t){
   });
 }
 
-/* ══════════════════════════════
-   스켈레톤 드로우 (공용)
-   vr = {x,y,w,h} 비디오 실제 영역
-   2D 앱과 동일: lineWidth=3, radius=8
-   ══════════════════════════════ */
+/* ══════════════════════════════════════════
+   스켈레톤 공용 드로우 함수
+   vr = {x, y, w, h}  비디오 실제 영역
+   2D 앱과 동일 디자인: lineWidth=3, radius=8
+   ══════════════════════════════════════════ */
 function draw_sk_on(c,vr,lm,wlm){
-  const p=i=>({x:vr.x+lm[i].x*vr.w,y:vr.y+lm[i].y*vr.h,z:wlm[i].z,vi:lm[i].visibility||0});
   const lw=Math.max(2.5,vr.h/220);
   const kr=Math.max(7,vr.h/90);
+  const px=i=>vr.x+lm[i].x*vr.w,py=i=>vr.y+lm[i].y*vr.h;
+  const vi=i=>lm[i].visibility||0;
   BONES.forEach(([a,b])=>{
-    const pa=p(a),pb=p(b);if(pa.vi<0.3||pb.vi<0.3)return;
-    const d=Math.max(-0.4,Math.min(0.4,(pa.z+pb.z)/2));
-    c.beginPath();c.moveTo(pa.x,pa.y);c.lineTo(pb.x,pb.y);
-    c.strokeStyle=`rgba(100,160,255,${(0.60+d*0.10).toFixed(2)})`;
-    c.lineWidth=lw;c.stroke();
+    if(vi(a)<0.3||vi(b)<0.3)return;
+    const d=Math.max(-0.4,Math.min(0.4,(wlm[a].z+wlm[b].z)/2));
+    c.beginPath();c.moveTo(px(a),py(a));c.lineTo(px(b),py(b));
+    c.strokeStyle=`rgba(100,160,255,${(0.60+d*0.10).toFixed(2)})`;c.lineWidth=lw;c.stroke();
   });
-  // 척추 중심선
   const mshx=vr.x+(lm[11].x+lm[12].x)/2*vr.w,mshy=vr.y+(lm[11].y+lm[12].y)/2*vr.h;
   const mhx=vr.x+(lm[23].x+lm[24].x)/2*vr.w,mhy=vr.y+(lm[23].y+lm[24].y)/2*vr.h;
   c.setLineDash([6,4]);c.beginPath();c.moveTo(mhx,mhy);c.lineTo(mshx,mshy);
   c.strokeStyle='rgba(250,230,80,.6)';c.lineWidth=lw*0.8;c.stroke();c.setLineDash([]);
-  // 키포인트
   for(let i=0;i<lm.length;i++){
-    const pp=p(i);if(pp.vi<0.35)continue;
-    c.beginPath();c.arc(pp.x,pp.y,kr,0,Math.PI*2);
+    if(vi(i)<0.35)continue;
+    const z=wlm[i].z;
+    c.beginPath();c.arc(px(i),py(i),kr,0,Math.PI*2);
     c.fillStyle=KP_COL[i]||'rgba(200,200,200,.7)';c.fill();
     c.strokeStyle='rgba(0,0,0,.4)';c.lineWidth=lw*0.7;c.stroke();
-    if(Math.abs(pp.z)>0.06){
-      c.beginPath();c.arc(pp.x,pp.y,kr+2+Math.abs(pp.z)*14,0,Math.PI*2);
-      c.strokeStyle=pp.z<0?'rgba(0,200,255,.35)':'rgba(255,120,0,.25)';
-      c.lineWidth=1.5;c.stroke();
+    if(Math.abs(z)>0.06){
+      c.beginPath();c.arc(px(i),py(i),kr+2+Math.abs(z)*14,0,Math.PI*2);
+      c.strokeStyle=z<0?'rgba(0,200,255,.35)':'rgba(255,120,0,.25)';c.lineWidth=1.5;c.stroke();
     }
   }
+}
+
+/* ── 기준 자세 그리기 ── 캡처 당시 위치에 초록 고정 오버레이 ── */
+function draw_ghost_on(c,vr,gLm,gWlm){
+  // gLm: 캡처한 2D 랜드마크 → 이 좌표로 그림 (현재 프레임 위치 아님)
+  c.globalAlpha=0.5;
+  const px=i=>vr.x+gLm[i].x*vr.w,py=i=>vr.y+gLm[i].y*vr.h,vi=i=>gLm[i].visibility||0;
+  BONES.forEach(([a,b])=>{
+    if(vi(a)<0.3||vi(b)<0.3)return;
+    c.beginPath();c.moveTo(px(a),py(a));c.lineTo(px(b),py(b));
+    c.strokeStyle='rgba(0,255,180,.85)';c.lineWidth=3;c.stroke();
+  });
+  for(let i=0;i<Math.min(33,gLm.length);i++){
+    if(vi(i)<0.35)continue;
+    c.beginPath();c.arc(px(i),py(i),8,0,Math.PI*2);
+    c.fillStyle='rgba(0,255,180,.8)';c.fill();
+  }
+  c.globalAlpha=1;
 }
 
 function draw_arr_on(c,vr,lm,wlm){
@@ -522,8 +561,7 @@ function draw_arr_on(c,vr,lm,wlm){
   TRACK.forEach(p=>{
     if(!sel.has(p.id))return;const v=cur[p.id]||0;if(v<0.15)return;
     p.idx.forEach(i=>{
-      const cx=vr.x+lm[i].x*vr.w,cy=vr.y+lm[i].y*vr.h;
-      const pw=prev.wlm[i];if(!pw)return;
+      const cx=vr.x+lm[i].x*vr.w,cy=vr.y+lm[i].y*vr.h,pw=prev.wlm[i];if(!pw)return;
       const dx=(wlm[i].x-pw.x)*vr.w*5,dy=(wlm[i].y-pw.y)*vr.h*5;
       const dist=Math.hypot(dx,dy)||1,sc=Math.min(v*40,60);
       const ex=cx+(dx/dist)*sc,ey=cy+(dy/dist)*sc,ang=Math.atan2(dy,dx);
@@ -536,39 +574,22 @@ function draw_arr_on(c,vr,lm,wlm){
   });
 }
 
-function draw_ghost_on(c,vr,curLm,ghostWlm){
-  c.globalAlpha=0.35;
-  BONES.forEach(([a,b])=>{
-    const av=curLm[a].visibility||0,bv=curLm[b].visibility||0;if(av<0.3||bv<0.3)return;
-    c.beginPath();c.moveTo(vr.x+curLm[a].x*vr.w,vr.y+curLm[a].y*vr.h);
-    c.lineTo(vr.x+curLm[b].x*vr.w,vr.y+curLm[b].y*vr.h);
-    c.strokeStyle='rgba(0,255,180,.8)';c.lineWidth=3;c.stroke();
-  });
-  for(let i=0;i<Math.min(33,curLm.length);i++){
-    if((curLm[i].visibility||0)<0.35)continue;
-    c.beginPath();c.arc(vr.x+curLm[i].x*vr.w,vr.y+curLm[i].y*vr.h,8,0,Math.PI*2);
-    c.fillStyle='rgba(0,255,180,.7)';c.fill();
-  }
-  c.globalAlpha=1;
-}
-
 /* ── UI 업데이트 ── */
 function update_data_ov(a){
   const f=v=>(v>=0?'+':'')+v+'°';
   $('do-sh').textContent=f(a.shR);$('do-hip').textContent=f(a.hipR);
   $('do-xf').textContent=f(a.xf);
   $('do-xf').style.color=Math.abs(a.xf)>25?'var(--green)':Math.abs(a.xf)>10?'var(--yellow)':'var(--txt2)';
-  $('do-spine').textContent=a.sp+'°';
+  $('do-spine').textContent=(a.sp||0)+'°';
   $('do-shv').textContent=Math.round(angVel.sh)+'°/s';
   $('do-hipv').textContent=Math.round(angVel.hip)+'°/s';
 }
-
 function update_panel(a){
   const f=v=>(v>=0?'+':'')+v+'°';
   $('rv-sh').textContent=f(a.shR);$('rv-hip').textContent=f(a.hipR);
   $('rv-xf').textContent=f(a.xf);
   $('rv-xf').style.color=Math.abs(a.xf)>25?'var(--green)':Math.abs(a.xf)>10?'var(--yellow)':'var(--txt2)';
-  $('rv-spine').textContent=a.sp+'°';$('rv-lean').textContent=f(a.fl);
+  $('rv-spine').textContent=(a.sp||0)+'°';$('rv-lean').textContent=f(a.fl);
   SPORTS[sport].joints.forEach(j=>{const el=$('jv-'+j.id);if(el){el.textContent=(a[j.id]||0)+'°';el.style.color=j.col;}});
   const sp=SPORTS[sport];
   if(sp.checks.length){
@@ -579,7 +600,12 @@ function update_panel(a){
       const d=document.createElement('div');d.className='rp-alert '+state;d.textContent=txt;aw.appendChild(d);
     });
   }
-  updateAngVelPanel();
+  $('rv-shv').textContent=Math.round(angVel.sh)+'°/s';
+  $('rv-hipv').textContent=Math.round(angVel.hip)+'°/s';
+  $('shv-fill').style.width=Math.min(100,angVel.sh/MAX_ANG_VEL*100)+'%';
+  $('hipv-fill').style.width=Math.min(100,angVel.hip/MAX_ANG_VEL*100)+'%';
+  $('rv-pksh').textContent=Math.round(peakAngVel.sh)+'°/s';
+  $('rv-pkhip').textContent=Math.round(peakAngVel.hip)+'°/s';
   TRACK.filter(p=>sel.has(p.id)).forEach(p=>{
     const v=cur[p.id]||0;
     const el=$('sv-'+p.id),fi=$('sf-'+p.id);
@@ -587,40 +613,11 @@ function update_panel(a){
     if(fi)fi.style.width=Math.min(100,v/6*100)+'%';
   });
 }
-function updateAngVelPanel(){
-  $('rv-shv').textContent=Math.round(angVel.sh)+'°/s';
-  $('rv-hipv').textContent=Math.round(angVel.hip)+'°/s';
-  $('shv-fill').style.width=Math.min(100,angVel.sh/MAX_ANG_VEL*100)+'%';
-  $('hipv-fill').style.width=Math.min(100,angVel.hip/MAX_ANG_VEL*100)+'%';
-  $('rv-pksh').textContent=Math.round(peakAngVel.sh)+'°/s';
-  $('rv-pkhip').textContent=Math.round(peakAngVel.hip)+'°/s';
-}
 
-/* ── 그래프 (회전 속도) ── */
-function draw_graph(t){
-  const W=gC.width=gC.offsetWidth,H=gC.height=Math.max(gC.offsetHeight||42,42);
-  gX.clearRect(0,0,W,H);
-  gX.strokeStyle='rgba(255,255,255,.06)';gX.lineWidth=1;
-  [.25,.5,.75].forEach(y=>{gX.beginPath();gX.moveTo(0,H*y);gX.lineTo(W,H*y);gX.stroke();});
-  const st=t-GRAPH_MS;
-  // 어깨 회전속도
-  if(angVelH.sh.length>=2){
-    const vis=angVelH.sh.filter(e=>e.t>=st);
-    if(vis.length>=2){gX.beginPath();let f=true;vis.forEach(e=>{const x=((e.t-st)/GRAPH_MS)*W,y=H-Math.min(1,e.v/MAX_ANG_VEL)*H;f?(gX.moveTo(x,y),f=false):gX.lineTo(x,y);});gX.strokeStyle='#a855f7bb';gX.lineWidth=1.8;gX.stroke();}
-  }
-  // 골반 회전속도
-  if(angVelH.hip.length>=2){
-    const vis=angVelH.hip.filter(e=>e.t>=st);
-    if(vis.length>=2){gX.beginPath();let f=true;vis.forEach(e=>{const x=((e.t-st)/GRAPH_MS)*W,y=H-Math.min(1,e.v/MAX_ANG_VEL)*H;f?(gX.moveTo(x,y),f=false):gX.lineTo(x,y);});gX.strokeStyle='#f97316bb';gX.lineWidth=1.8;gX.stroke();}
-  }
-  gX.fillStyle='rgba(255,255,255,.22)';gX.font='9px -apple-system,sans-serif';gX.textAlign='right';
-  gX.fillText(MAX_ANG_VEL+'°/s',W-2,10);gX.fillText('0',W-2,H-2);
-}
-
-/* ══════════════════════════════
-   녹화 캔버스 — 영상+스켈레톤+데이터 합성
+/* ══════════════════════════════════════════
+   녹화 캔버스 — 영상+스켈레톤+데이터패널+그래프
    해상도 최대 1920px, 12Mbps (2D 앱 동일)
-   ══════════════════════════════ */
+   ══════════════════════════════════════════ */
 function initCompCanvas(){
   const vW=vid.videoWidth||1280,vH=vid.videoHeight||720;
   const scale=Math.min(REC_MAX/Math.max(vW,vH),1);
@@ -632,9 +629,8 @@ function drawCompFrame(){
   if(!live)return;
   const panW=Math.round(compW*0.28);
   const vidAreaW=compW-panW;
-  // 배경
   compCtx.fillStyle='#000';compCtx.fillRect(0,0,compW,compH);
-  // 비디오 — 왼쪽 영역에 가로세로 비율 유지하며 그리기
+  // 비디오
   let vr={x:0,y:0,w:vidAreaW,h:compH};
   if(vid.readyState>=2){
     const vW=vid.videoWidth||vidAreaW,vH=vid.videoHeight||compH;
@@ -645,84 +641,103 @@ function drawCompFrame(){
     compCtx.drawImage(vid,dx,dy,dw,dh);
     vr={x:dx,y:dy,w:dw,h:dh};
   }
-  // 고스트
-  if(showGhost&&ghostLm&&lastLm)draw_ghost_on(compCtx,vr,lastLm,ghostLm);
+  // 기준 자세 (캡처 위치에 고정)
+  if(showGhost&&ghostLm2d)draw_ghost_on(compCtx,vr,ghostLm2d,ghostWlm);
   // 스켈레톤
   if(lastLm&&lastWlm){draw_sk_on(compCtx,vr,lastLm,lastWlm);draw_arr_on(compCtx,vr,lastLm,lastWlm);}
-  // 데이터 패널
+  // 회전 속도 그래프 (영상 하단)
+  draw_graph_on_comp(compCtx,vr);
+  // 데이터 패널 (우측)
   draw_comp_panel(compCtx,compW,compH,panW);
+}
+
+/* 녹화 영상 하단 그래프 */
+function draw_graph_on_comp(c,vr){
+  const gH=Math.round(vr.h*0.12);
+  const gY=vr.y+vr.h-gH;
+  const t=lastFrameT||performance.now();
+  const st=t-GRAPH_MS;
+  c.fillStyle='rgba(9,9,15,.82)';c.fillRect(vr.x,gY,vr.w,gH);
+  c.strokeStyle='rgba(255,255,255,.08)';c.lineWidth=1;
+  [.33,.66].forEach(y=>{c.beginPath();c.moveTo(vr.x,gY+gH*y);c.lineTo(vr.x+vr.w,gY+gH*y);c.stroke();});
+  // 어깨 각속도
+  const drawLine=(hist,col)=>{
+    const vis=hist.filter(e=>e.t>=st);if(vis.length<2)return;
+    c.beginPath();let f=true;
+    vis.forEach(e=>{
+      const x=vr.x+((e.t-st)/GRAPH_MS)*vr.w,y=gY+gH-Math.min(1,e.v/MAX_ANG_VEL)*gH;
+      f?(c.moveTo(x,y),f=false):c.lineTo(x,y);
+    });
+    c.strokeStyle=col;c.lineWidth=Math.max(1.5,vr.h/400);c.stroke();
+  };
+  drawLine(angVelH.sh,'#a855f7cc');drawLine(angVelH.hip,'#f97316cc');
+  const fs=Math.max(9,Math.round(gH*0.28));
+  c.font=`${fs}px -apple-system,sans-serif`;c.textAlign='left';
+  c.fillStyle='#a855f7';c.fillText(lang==='ko'?'어깨':'Sh',vr.x+4,gY+fs+2);
+  c.fillStyle='#f97316';c.fillText(lang==='ko'?'골반':'Hip',vr.x+4+fs*3,gY+fs+2);
+  c.textAlign='right';c.fillStyle='rgba(255,255,255,.3)';
+  c.fillText(MAX_ANG_VEL+'°/s',vr.x+vr.w-3,gY+fs+2);
 }
 
 function draw_comp_panel(c,W,H,panW){
   const ko=lang==='ko';
-  const pad=Math.round(H*0.016);
+  const pad=Math.round(H*0.016),px=W-panW+pad;
   const fs=Math.max(12,Math.round(H*0.022));
   const fsS=Math.max(10,Math.round(H*0.017));
   const fsL=Math.max(14,Math.round(H*0.028));
-  const px=W-panW+pad;
-  // 패널 배경
   c.fillStyle='rgba(9,9,15,.84)';c.fillRect(W-panW,0,panW,H);
   c.strokeStyle='rgba(255,255,255,.12)';c.lineWidth=1;
   c.beginPath();c.moveTo(W-panW,0);c.lineTo(W-panW,H);c.stroke();
   let y=pad*2;c.textAlign='left';
-  // 로고
   c.font=`900 ${fs}px -apple-system,sans-serif`;c.fillStyle='#e8e8f2';c.fillText('APL',px,y);
   c.fillStyle=SPORTS[sport].col;c.fillText(' 3D',px+c.measureText('APL').width,y);
   y+=fs+pad*0.6;
   c.font=`600 ${fsS}px -apple-system,sans-serif`;c.fillStyle=SPORTS[sport].col;
   c.fillText(ko?SPORTS[sport].ko:SPORTS[sport].en,px,y);y+=fsS+pad*1.5;
 
-  function divider(){c.fillStyle='rgba(255,255,255,.1)';c.fillRect(px,y,panW-pad*2,1);y+=pad;}
-  function secTitle(txt){c.font=`700 ${fsS}px -apple-system,sans-serif`;c.fillStyle='rgba(255,255,255,.45)';c.fillText(txt,px,y);y+=fsS+pad*0.5;}
-  function row(lbl,val,col){
-    if(y>H-pad*3)return;
+  const div=()=>{c.fillStyle='rgba(255,255,255,.1)';c.fillRect(px,y,panW-pad*2,1);y+=pad;};
+  const sec=(t2)=>{c.font=`700 ${fsS}px -apple-system,sans-serif`;c.fillStyle='rgba(255,255,255,.45)';c.fillText(t2,px,y);y+=fsS+pad*0.5;};
+  const row=(lbl,val,col)=>{
+    if(y>H-pad*4)return;
     c.font=`${fsS}px -apple-system,sans-serif`;c.fillStyle='rgba(255,255,255,.45)';c.fillText(lbl,px,y);
     c.font=`800 ${fsL}px -apple-system,sans-serif`;c.fillStyle=col;c.textAlign='right';
     c.fillText(val,W-pad,y);c.textAlign='left';y+=fsL+pad*0.3;
-  }
+  };
   const f=v=>(v>=0?'+':'')+v+'°';
 
-  divider();
-  secTitle(ko?'회전각 3D':'ROTATION 3D');
+  div();sec(ko?'회전각 3D':'ROTATION 3D');
   row(ko?'어깨':'Shoulder',f(lastA.shR||0),'#a855f7');
   row(ko?'골반':'Hip',f(lastA.hipR||0),'#f97316');
-  const xv=lastA.xf||0;
-  row('X-factor',f(xv),Math.abs(xv)>25?'#22c55e':Math.abs(xv)>10?'#eab308':'rgba(255,255,255,.45)');
+  const xv=lastA.xf||0;row('X-factor',f(xv),Math.abs(xv)>25?'#22c55e':Math.abs(xv)>10?'#eab308':'rgba(255,255,255,.45)');
   y+=pad*0.5;
 
-  divider();
-  secTitle(ko?'자세 3D':'POSTURE 3D');
-  // 척추 기울기 — 수직선 기준 좌우 기울어진 각도
+  div();sec(ko?'자세 3D':'POSTURE 3D');
   row(ko?'척추기울기':'Spine tilt',(lastA.sp||0)+'°','#06b6d4');
   row(ko?'전방기울기':'Fwd lean',f(lastA.fl||0),'rgba(255,255,255,.7)');
   y+=pad*0.5;
 
-  divider();
-  secTitle(ko?'회전 속도':'ROT. SPEED');
+  div();sec(ko?'회전 속도':'ROT.SPEED');
   row(ko?'어깨 °/s':'Sh. °/s',Math.round(angVel.sh)+'°/s','#a855f7');
   row(ko?'골반 °/s':'Hip °/s',Math.round(angVel.hip)+'°/s','#f97316');
   y+=pad*0.5;
 
-  // 관절 각도
   const spJ=SPORTS[sport].joints;
   if(spJ.length&&y<H-pad*8){
-    divider();secTitle(ko?'관절 각도':'JOINTS');
-    spJ.forEach(j=>{if(y>H-pad*3)return;row(ko?j.ko:j.en,(lastA[j.id]||0)+'°',j.col);});
+    div();sec(ko?'관절 각도':'JOINTS');
+    spJ.forEach(j=>{if(y>H-pad*4)return;row(ko?j.ko:j.en,(lastA[j.id]||0)+'°',j.col);});
     y+=pad*0.5;
   }
-
-  // 최고 회전속도
   if(y<H-pad*5){
     c.font=`${fsS}px -apple-system,sans-serif`;c.fillStyle='rgba(255,255,255,.3)';
-    c.fillText((ko?'최고 어깨: ':'Peak Sh: ')+Math.round(peakAngVel.sh)+'°/s',px,H-pad*2);
-    c.fillText((ko?'최고 골반: ':'Peak Hip: ')+Math.round(peakAngVel.hip)+'°/s',px,H-pad*0.5);
+    c.fillText((ko?'최고 어깨: ':'PkSh: ')+Math.round(peakAngVel.sh)+'°/s',px,H-pad*2);
+    c.fillText((ko?'최고 골반: ':'PkHip: ')+Math.round(peakAngVel.hip)+'°/s',px,H-pad*0.4);
   }
 }
 
 /* ── 녹화 ── */
 function getMimeType(){
-  const cands=['video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/mp4','video/webm;codecs=vp9','video/webm'];
-  return cands.find(t=>{try{return MediaRecorder.isTypeSupported(t);}catch{return false;}})||'';
+  const c=['video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/mp4','video/webm;codecs=vp9','video/webm'];
+  return c.find(t=>{try{return MediaRecorder.isTypeSupported(t);}catch{return false;}})||'';
 }
 function startRec(){
   if(!live){alert(lang==='ko'?'분석을 먼저 시작하세요':'Start analysis first');return;}
@@ -734,7 +749,7 @@ function startRec(){
     recChunks=[];
     recorder.ondataavailable=e=>{if(e.data&&e.data.size>0)recChunks.push(e.data);};
     recorder.onstop=async()=>{
-      try{const cs2=recorder.stream;cs2&&cs2.getTracks().forEach(t=>t.stop());}catch(e){}
+      try{recorder.stream.getTracks().forEach(t=>t.stop());}catch(e){}
       const type=recorder.mimeType||'video/mp4';
       const blob=new Blob(recChunks,{type});
       const ext=type.includes('webm')?'webm':'mp4';
@@ -787,14 +802,7 @@ function buildJoints(){
   });
 }
 function buildRows(){
-  const sr=$('spd-rows'),lg=$('graph-legend');
-  sr.innerHTML='';lg.innerHTML='';
-  // 그래프 범례 (회전속도)
-  [{col:'#a855f7',ko:'어깨',en:'Shoulder'},{col:'#f97316',ko:'골반',en:'Hip'}].forEach(p=>{
-    const gl=document.createElement('div');gl.className='g-leg';
-    gl.innerHTML=`<div class="g-dot" style="background:${p.col}"></div>${lang==='ko'?p.ko:p.en}`;lg.appendChild(gl);
-  });
-  // 추적 포인트 선형속도
+  const sr=$('spd-rows');sr.innerHTML='';
   TRACK.filter(p=>sel.has(p.id)).forEach(p=>{
     const lbl=lang==='ko'?p.ko:p.en;
     const row=document.createElement('div');row.className='rp-row';
@@ -810,24 +818,28 @@ function lang_apply(){
   $('btn-cam').textContent='📷'+(ko?' 카메라':' Cam');
   $('btn-file').textContent='📁'+(ko?' 파일':' File');
   if(!live)$('btn-main').textContent=ko?'▶ 시작':'▶ Start';
+  // 일시정지 버튼
+  $('btn-pause').textContent=isPaused?(ko?'▶ 재생':'▶ Play'):'⏸';
+  $('pause-badge').textContent=ko?'⏸ 일시정지 — 👻 기준 자세 설정 후 ▶ 재생':'⏸ Paused — Set 👻 reference, then ▶ play';
   $('do-lbl-sh').textContent=ko?'어깨':'Sh';$('do-lbl-hip').textContent=ko?'골반':'Hip';
   $('do-lbl-spine').textContent=ko?'척추':'Spine';
-  $('do-lbl-shv').textContent=ko?'어깨속도':'Sh.°/s';$('do-lbl-hipv').textContent=ko?'골반속도':'Hip°/s';
+  $('do-lbl-shv').textContent=ko?'어깨°/s':'Sh°/s';$('do-lbl-hipv').textContent=ko?'골반°/s':'Hip°/s';
   $('rp-t-rot').textContent=ko?'회전각 3D':'Rotation 3D';
   $('rp-sh').textContent=ko?'어깨':'Shoulder';$('rp-hip').textContent=ko?'골반':'Hip';
   $('rp-t-pos').textContent=ko?'자세 3D':'Posture 3D';
   $('rp-spine').textContent=ko?'척추기울기':'Spine tilt';$('rp-lean').textContent=ko?'전방기울기':'Fwd lean';
-  $('rp-t-angv').textContent=ko?'회전 속도 (°/s)':'Rot. Speed (°/s)';
+  $('rp-t-angv').textContent=ko?'회전 속도 (°/s)':'Rot.Speed(°/s)';
   $('rp-shv').textContent=ko?'어깨':'Shoulder';$('rp-hipv').textContent=ko?'골반':'Hip';
-  $('rp-angv-note').textContent=ko?'좌우 어깨선·골반선 축회전 속도':'Axial rotation speed of shoulder/hip line';
-  $('rp-t-pkangv').textContent=ko?'최고 회전속도':'Peak Rot. Speed';
+  $('rp-t-pkangv').textContent=ko?'최고 회전속도':'Peak Speed';
   $('rp-pksh').textContent=ko?'어깨':'Shoulder';$('rp-pkhip').textContent=ko?'골반':'Hip';
-  $('rp-t-joint').textContent=ko?'관절 각도 (굴곡)':'Joint Angle (flex)';
+  $('rp-t-joint').textContent=ko?'관절 각도(굴곡)':'Joint Angle(flex)';
+  $('rp-t-ghost').textContent=ko?'👻 기준 자세 사용법':'👻 Reference Guide';
+  $('ghost-help').textContent=ko
+    ?'① ⏸ 눌러 영상 정지\n② 기준 자세가 화면에 나오면 👻 클릭\n③ 초록 골격이 고정됨\n④ ▶ 눌러 재생 계속'
+    :'① Press ⏸ to pause\n② When pose is ready, tap 👻\n③ Green skeleton freezes\n④ Press ▶ to resume';
   $('rp-t-pts').textContent=ko?'추적 포인트':'Track Points';
-  $('rp-pts-note').textContent=ko?'선택 부위 선형속도(m/s) 표시':'Linear speed (m/s) of selected parts';
   $('rp-t-alert').textContent=ko?'분석 피드백':'Feedback';
   $('no-det').textContent=ko?'📷 전신이 보이도록 서 주세요':'📷 Stand so full body is visible';
-  $('graph-lbl').textContent=ko?'회전 속도 그래프 (5초)':'Rotation Speed (5s)';
   const ICONS={'GEN':'⚡','SPL':'❄️','GPL':'⛳','BPL':'⚾','TPL':'🎾'};
   const NAMES={GEN:{ko:'일반',en:'General'},SPL:{ko:'SPL 스케이팅',en:'Skating'},GPL:{ko:'골프',en:'Golf'},BPL:{ko:'야구/농구',en:'Baseball/Bball'},TPL:{ko:'테니스',en:'Tennis'}};
   document.querySelectorAll('.sp-btn').forEach(b=>{const s=b.dataset.s;b.textContent=ICONS[s]+' '+(ko?NAMES[s].ko:NAMES[s].en);});
