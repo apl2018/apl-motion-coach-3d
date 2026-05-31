@@ -76,7 +76,7 @@ header{display:flex;align-items:center;justify-content:space-between;
 .pause-badge{background:rgba(0,0,0,.7);border:2px solid var(--yellow);border-radius:14px;
   padding:10px 20px;font-size:14px;font-weight:700;color:var(--yellow)}
 /* 오른쪽 패널 */
-#right-panel{width:132px;background:var(--card);border-left:1px solid var(--border);
+#right-panel{width:80px;background:var(--card);border-left:1px solid var(--border);
   display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;scrollbar-width:none}
 #right-panel::-webkit-scrollbar{display:none}
 .rp-sec{padding:3px 6px;border-bottom:1px solid var(--border)}
@@ -128,7 +128,7 @@ header{display:flex;align-items:center;justify-content:space-between;
 .btn-ref:active{opacity:.6}
 .btn-prev{background:rgba(255,255,255,.1);color:var(--txt);width:34px;height:34px;padding:0;font-size:14px;border:none;border-radius:8px;cursor:pointer}
 .btn-prev:active{opacity:.6}
-@media(max-width:380px){#right-panel{width:104px}.btn{font-size:10px}.btn-main{padding:0 12px}}
+@media(max-width:380px){#right-panel{width:64px}.btn{font-size:10px}.btn-main{padding:0 12px}}
 </style>
 </head>
 <body>
@@ -619,8 +619,9 @@ function captureVideoFrame(){
 function draw_ghost_on(c,vr,_gLm,_gWlm){
   // 영상 프레임 오버레이 (흐리게)
   if(ghostFrameCanvas){
-    c.globalAlpha=0.40;
-    try{c.filter='blur(2px)';}catch(e){}
+    // 라이브 캔버스: 낮은 불투명도(18%)로 현재 영상 위에 살짝 오버레이
+    c.globalAlpha=0.18;
+    try{c.filter='blur(1.5px)';}catch(e){}
     c.drawImage(ghostFrameCanvas,vr.x,vr.y,vr.w,vr.h);
     try{c.filter='none';}catch(e){}
     c.globalAlpha=1;
@@ -702,19 +703,29 @@ function drawCompFrame(){
   const panW=Math.round(compW*0.28);
   const vidAreaW=compW-panW;
   compCtx.fillStyle='#000';compCtx.fillRect(0,0,compW,compH);
-  // 비디오
   let vr={x:0,y:0,w:vidAreaW,h:compH};
+  let dx=0,dy=0,dw=vidAreaW,dh=compH;
   if(vid.readyState>=2){
     const vW=vid.videoWidth||vidAreaW,vH=vid.videoHeight||compH;
     const vAr=vW/vH,aAr=vidAreaW/compH;
-    let dx=0,dy=0,dw=vidAreaW,dh=compH;
     if(vAr>aAr){dh=vidAreaW/vAr;dy=(compH-dh)/2;}
     else{dw=compH*vAr;dx=(vidAreaW-dw)/2;}
-    compCtx.drawImage(vid,dx,dy,dw,dh);
     vr={x:dx,y:dy,w:dw,h:dh};
   }
-  // 기준 자세 (캡처 위치에 고정)
-  if(showGhost&&ghostLm2d)draw_ghost_on(compCtx,vr,ghostLm2d,ghostWlm);
+  // ① 기준 자세 먼저 (배경에 반투명): 선수의 기준 자세만 흐리게
+  if(showGhost&&ghostFrameCanvas){
+    compCtx.globalAlpha=0.55;
+    try{compCtx.filter='blur(1px)';}catch(e){}
+    compCtx.drawImage(ghostFrameCanvas,dx,dy,dw,dh);
+    try{compCtx.filter='none';}catch(e){}
+    compCtx.globalAlpha=1;
+  }
+  // ② 현재 분석 영상을 위에 그림 (약간 투명하게 → ghost가 아주 살짝 비침)
+  if(vid.readyState>=2){
+    compCtx.globalAlpha=showGhost?0.80:1.0;
+    compCtx.drawImage(vid,dx,dy,dw,dh);
+    compCtx.globalAlpha=1;
+  }
   // 스켈레톤
   if(lastLm&&lastWlm){draw_sk_on(compCtx,vr,lastLm,lastWlm,true);draw_arr_on(compCtx,vr,lastLm,lastWlm);}
   // 데이터 패널 (우측) — 그래프 포함
@@ -833,21 +844,30 @@ function draw_comp_panel(c,W,H,panW){
     spJ.forEach(j=>{if(y>H-pad*4)return;row(ko?j.ko:j.en,(lastA[j.id]||0)+'°',j.col);});
     y+=pad*0.5;
   }
-  // ── 패널 하단: 그래프 + 최고 어깨/골반 ──────────────────
-  const pkRowH=Math.round(fsS*1.5);            // 최고속도 1행 높이
-  const pkTotalH=pkRowH*2+pad;                 // 최고속도 2행 총 높이
-  const gBotY=H-pkTotalH-pad;                  // 그래프 하단 = 최고속도 바로 위
-  const gTopY=Math.max(y+pad,gBotY-Math.round(H*0.15)); // 그래프 상단
-  const gH2=gBotY-gTopY;                       // 그래프 실제 높이
-  const gW2=panW-pad*2;                        // 그래프 너비
+  // ── 패널 하단: 실시간 롤링 그래프 (최근 5초) + X축 시간 눈금 ──
+  const fsG=Math.max(8,Math.round(H*0.014));   // 그래프 내 폰트
+  const timeAxisH=Math.round(fsG*1.6);          // X축 눈금 높이
+  const gBotY=H-pad-timeAxisH;                  // 그래프 하단 (눈금 위)
+  const gTopY=Math.max(y+pad,gBotY-Math.round(H*0.18)); // 그래프 상단
+  const gH2=gBotY-gTopY;
+  const gW2=panW-pad*2;
+  const t2=lastFrameT||performance.now();
+  const st=t2-GRAPH_MS;
 
   if(gH2>pad*2){
     // 구분선
     c.fillStyle='rgba(255,255,255,.1)';c.fillRect(px,gTopY-pad,gW2,1);
     // 그래프 배경
-    c.fillStyle='rgba(255,255,255,.04)';c.fillRect(px,gTopY,gW2,gH2);
-    // 각속도 선
-    const t2=lastFrameT||performance.now(),st=t2-GRAPH_MS;
+    c.fillStyle='rgba(0,0,0,.3)';c.fillRect(px,gTopY,gW2,gH2);
+    // 수평 가이드
+    c.strokeStyle='rgba(255,255,255,.07)';c.lineWidth=1;
+    [.33,.67].forEach(r=>{c.beginPath();c.moveTo(px,gTopY+gH2*r);c.lineTo(px+gW2,gTopY+gH2*r);c.stroke();});
+    // 현재 시점 수직선
+    c.strokeStyle='rgba(255,255,255,.25)';c.lineWidth=1;c.setLineDash([3,3]);
+    c.beginPath();c.moveTo(px+gW2,gTopY);c.lineTo(px+gW2,gBotY);c.stroke();
+    c.setLineDash([]);
+    // 실시간 각속도 선
+    const lw2=Math.max(1.5,H/500);
     const drawLP=(hist,col)=>{
       const vis=hist.filter(e=>e.t>=st);if(vis.length<2)return;
       c.beginPath();let f=true;
@@ -856,29 +876,33 @@ function draw_comp_panel(c,W,H,panW){
         const y2=gTopY+gH2-Math.min(1,e.v/MAX_ANG_VEL)*gH2;
         f?(c.moveTo(x,y2),f=false):c.lineTo(x,y2);
       });
-      c.strokeStyle=col;c.lineWidth=Math.max(1.5,H/500);c.stroke();
+      c.strokeStyle=col;c.lineWidth=lw2;c.stroke();
     };
     drawLP(angVelH.sh,'#a855f7cc');
     drawLP(angVelH.hip,'#f97316cc');
-    // 그래프 범례
-    const fsG=Math.round(fsS*0.82);
-    c.font=`${fsG}px -apple-system,sans-serif`;c.textAlign='left';
-    c.fillStyle='#a855f7';c.fillText(ko?'어깨':'Sh',px+3,gTopY+fsG+2);
-    c.fillStyle='#f97316';c.fillText(ko?'골반':'Hip',px+3+fsG*2.8,gTopY+fsG+2);
-    c.textAlign='right';c.fillStyle='rgba(255,255,255,.25)';
-    c.fillText(MAX_ANG_VEL+'°/s',W-pad+panW/2,gTopY+fsG+2);
+    // 범례 + Y축 최대값
+    c.font=`bold ${fsG}px -apple-system,sans-serif`;c.textAlign='left';
+    c.fillStyle='#a855f7';c.fillText(ko?'어깨':'Sh',px+2,gTopY+fsG+1);
+    c.fillStyle='#f97316';c.fillText(ko?'골반':'Hip',px+2+fsG*2.6,gTopY+fsG+1);
+    c.textAlign='right';c.fillStyle='rgba(255,255,255,.22)';c.font=`${fsG}px -apple-system,sans-serif`;
+    c.fillText(MAX_ANG_VEL+'°/s',px+gW2,gTopY+fsG+1);
+
+    // X축 시간 눈금 (-4s, -3s, -2s, -1s, now)
+    c.font=`${fsG}px -apple-system,sans-serif`;c.fillStyle='rgba(255,255,255,.35)';
+    [1,2,3,4].forEach(s2=>{
+      const xTick=px+((GRAPH_MS-s2*1000)/GRAPH_MS)*gW2;
+      // 눈금 세로선
+      c.strokeStyle='rgba(255,255,255,.12)';c.lineWidth=1;c.setLineDash([2,2]);
+      c.beginPath();c.moveTo(xTick,gTopY);c.lineTo(xTick,gBotY);c.stroke();c.setLineDash([]);
+      // 눈금 레이블
+      c.textAlign='center';
+      c.fillText('-'+s2+'s',xTick,gBotY+timeAxisH-2);
+    });
+    // "now" 레이블
+    c.textAlign='right';c.fillStyle='rgba(255,255,255,.5)';
+    c.fillText(ko?'지금':'now',px+gW2,gBotY+timeAxisH-2);
     c.textAlign='left';
   }
-
-  // 최고 어깨 / 최고 골반
-  const lbPk=(txt,val,col,y2)=>{
-    c.font=`${fsS}px -apple-system,sans-serif`;c.fillStyle='rgba(255,255,255,.5)';c.textAlign='left';
-    c.fillText(txt,px,y2);
-    c.font=`bold ${fsS}px -apple-system,sans-serif`;c.fillStyle=col;c.textAlign='right';
-    c.fillText(Math.round(val)+'°/s',W-pad,y2);c.textAlign='left';
-  };
-  lbPk(ko?'최고 어깨':'Peak Sh',peakAngVel.sh,'#a855f7',gBotY+Math.round(pkRowH*0.8));
-  lbPk(ko?'최고 골반':'Peak Hip',peakAngVel.hip,'#f97316',gBotY+Math.round(pkRowH*1.9));
 }
 
 /* ── 녹화 ── */
