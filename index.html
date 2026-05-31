@@ -9,112 +9,83 @@
   --bg:#09090f;--card:#111122;--card2:#181830;--border:rgba(255,255,255,.1);
   --txt:#e8e8f2;--txt2:rgba(255,255,255,.5);
   --blue:#3b82f6;--green:#22c55e;--yellow:#eab308;--red:#ef4444;
-  --purple:#a855f7;--orange:#f97316;--cyan:#06b6d4;
-  --sport:#3b82f6;
+  --purple:#a855f7;--orange:#f97316;--cyan:#06b6d4;--sport:#3b82f6;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:var(--bg);color:var(--txt);font-family:-apple-system,'Helvetica Neue',sans-serif;
+  height:100svh;display:flex;flex-direction:column;overflow:hidden}
 
-/* ── 전체 레이아웃: 4개 고정 영역만, 절대 오버랩 없음 ── */
-body{
-  background:var(--bg);color:var(--txt);
-  font-family:-apple-system,'Helvetica Neue',sans-serif;
-  height:100svh;          /* iOS safe viewport */
-  display:flex;flex-direction:column;overflow:hidden;
-}
-
-/* ── HEADER ── */
-header{
-  display:flex;align-items:center;justify-content:space-between;
-  padding:6px 12px;background:var(--card);
-  border-bottom:1px solid var(--border);flex-shrink:0;
-  min-height:40px;
-}
+/* HEADER */
+header{display:flex;align-items:center;justify-content:space-between;
+  padding:5px 12px;background:var(--card);border-bottom:1px solid var(--border);
+  flex-shrink:0;min-height:38px}
 .h-logo{font-size:13px;font-weight:900;letter-spacing:.5px}
 .h-logo .accent{color:var(--sport);transition:color .3s}
 .h-ver{font-size:9px;opacity:.4;margin-left:4px}
-.h-right{display:flex;gap:6px;align-items:center}
+.h-right{display:flex;gap:6px}
 .h-btn{background:rgba(255,255,255,.08);color:var(--txt2);border:1px solid var(--border);
-  border-radius:8px;padding:5px 10px;font-size:11px;cursor:pointer;min-height:32px}
+  border-radius:8px;padding:5px 10px;font-size:11px;cursor:pointer;min-height:30px}
 .h-btn:active{opacity:.6}
 
-/* ── SPORT BAR ── */
-#sport-bar{
-  display:flex;gap:4px;padding:4px 10px;background:var(--card);
-  border-bottom:1px solid var(--border);flex-shrink:0;
-  overflow-x:auto;scrollbar-width:none;min-height:36px;align-items:center;
-}
+/* SPORT BAR */
+#sport-bar{display:flex;gap:4px;padding:4px 10px;background:var(--card);
+  border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto;
+  scrollbar-width:none;min-height:34px;align-items:center}
 #sport-bar::-webkit-scrollbar{display:none}
-.sp-btn{
-  background:rgba(255,255,255,.06);color:var(--txt2);border:1px solid var(--border);
-  border-radius:8px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer;
-  white-space:nowrap;transition:all .2s;flex-shrink:0;min-height:28px;
-}
+.sp-btn{background:rgba(255,255,255,.06);color:var(--txt2);border:1px solid var(--border);
+  border-radius:7px;padding:3px 9px;font-size:11px;font-weight:600;cursor:pointer;
+  white-space:nowrap;transition:all .2s;flex-shrink:0;min-height:26px}
+.sp-btn[data-s="GEN"].on{background:rgba(59,130,246,.25);border-color:#3b82f6;color:#3b82f6}
 .sp-btn[data-s="SPL"].on{background:rgba(6,182,212,.25);border-color:#06b6d4;color:#06b6d4}
 .sp-btn[data-s="GPL"].on{background:rgba(34,197,94,.25);border-color:#22c55e;color:#22c55e}
 .sp-btn[data-s="BPL"].on{background:rgba(249,115,22,.25);border-color:#f97316;color:#f97316}
 .sp-btn[data-s="TPL"].on{background:rgba(168,85,247,.25);border-color:#a855f7;color:#a855f7}
-.sp-btn[data-s="GEN"].on{background:rgba(59,130,246,.25);border-color:#3b82f6;color:#3b82f6}
 
-/* ── 메인 영역: 남은 공간 전부 차지 ── */
+/* APP BODY */
 #app-body{flex:1;display:flex;overflow:hidden;min-height:0}
 
-/* ── 비디오 영역 ── */
+/* VIDEO */
 #vid-wrap{flex:1;position:relative;background:#000;overflow:hidden}
 #vid{position:absolute;width:100%;height:100%;object-fit:contain;opacity:0}
 #vid.show{opacity:1}
 #cvs{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none}
 
-/* ── 비디오 위 오버레이들 ── */
-#load-overlay{
-  position:absolute;inset:0;background:rgba(0,0,0,.88);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:16px;z-index:20;
-}
+/* LOADING */
+#load-overlay{position:absolute;inset:0;background:rgba(0,0,0,.88);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:20}
 #load-overlay.hidden{display:none}
 .spinner{width:36px;height:36px;border:3px solid rgba(59,130,246,.3);
   border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 #load-txt{font-size:13px;color:var(--txt2);text-align:center;line-height:1.6}
 .load-sub{font-size:10px;color:rgba(255,255,255,.3)}
-
 #no-det{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
   font-size:13px;color:var(--txt2);pointer-events:none;display:none;text-align:center}
 #no-det.on{display:block}
 
-/* FPS / 상태 칩 */
+/* INFO BAR */
 #info-bar{position:absolute;top:8px;left:8px;display:flex;gap:4px;pointer-events:none;flex-wrap:wrap}
-.chip{background:rgba(0,0,0,.75);border:1px solid rgba(255,255,255,.2);
+.chip{background:rgba(0,0,0,.78);border:1px solid rgba(255,255,255,.2);
   border-radius:6px;padding:3px 7px;font-size:10px;font-weight:700}
 .chip.blue{border-color:var(--blue);color:var(--blue)}
 .chip.red{border-color:var(--red);color:var(--red);animation:blink 1s ease-in-out infinite}
 .chip.green{border-color:var(--green);color:var(--green)}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
 
-/* ── 실시간 데이터 오버레이 (비디오 위 오른쪽) ── */
-#data-ov{
-  position:absolute;top:8px;right:8px;
+/* DATA OVERLAY (영상 위 오른쪽 상단) */
+#data-ov{position:absolute;top:8px;right:8px;
   background:rgba(0,0,0,.78);border:1px solid rgba(255,255,255,.15);
-  border-radius:10px;padding:8px 10px;
-  display:flex;flex-direction:column;gap:5px;
-  min-width:106px;pointer-events:none;
-  transition:opacity .2s;
-}
-#data-ov.hidden{opacity:0}
+  border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;gap:4px;
+  min-width:108px;pointer-events:none}
 .do-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .do-lbl{font-size:10px;color:var(--txt2);white-space:nowrap}
-.do-val{font-size:13px;font-weight:800;font-variant-numeric:tabular-nums;text-align:right}
-.do-divider{height:1px;background:rgba(255,255,255,.1);margin:1px 0}
+.do-val{font-size:13px;font-weight:800;font-variant-numeric:tabular-nums}
+.do-div{height:1px;background:rgba(255,255,255,.1);margin:1px 0}
 
-/* ── 그래프 오버레이 (비디오 하단) ── */
-#graph-ov{
-  position:absolute;bottom:0;left:0;right:0;
-  height:68px;
-  background:rgba(9,9,15,.85);
-  border-top:1px solid rgba(255,255,255,.1);
-  padding:4px 8px 3px;
-  transition:transform .25s;
-  pointer-events:none;
-}
+/* GRAPH OVERLAY (영상 하단 슬라이드) */
+#graph-ov{position:absolute;bottom:0;left:0;right:0;height:66px;
+  background:rgba(9,9,15,.85);border-top:1px solid rgba(255,255,255,.1);
+  padding:4px 8px 3px;transition:transform .25s;pointer-events:none}
 #graph-ov.hidden{transform:translateY(100%)}
 #graph-hdr{font-size:9px;color:var(--txt2);margin-bottom:2px;
   display:flex;align-items:center;justify-content:space-between}
@@ -123,15 +94,12 @@ header{
 .g-dot{width:8px;height:2px;border-radius:1px;flex-shrink:0}
 #graph-cvs{width:100%;display:block}
 
-/* ── 오른쪽 패널 ── */
-#right-panel{
-  width:130px;background:var(--card);border-left:1px solid var(--border);
-  display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;scrollbar-width:none;
-}
+/* RIGHT PANEL */
+#right-panel{width:130px;background:var(--card);border-left:1px solid var(--border);
+  display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;scrollbar-width:none}
 #right-panel::-webkit-scrollbar{display:none}
 .rp-sec{padding:6px 8px;border-bottom:1px solid var(--border)}
-.rp-title{font-size:8px;color:var(--txt2);text-transform:uppercase;
-  letter-spacing:.6px;margin-bottom:4px;font-weight:700}
+.rp-title{font-size:8px;color:var(--txt2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px;font-weight:700}
 .rp-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:3px}
 .rp-lbl{font-size:10px;color:var(--txt2);flex-shrink:0}
 .rp-val{font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;text-align:right}
@@ -146,56 +114,35 @@ header{
 .rp-alert.warn{background:rgba(234,179,8,.15);color:#eab308}
 .rp-alert.bad{background:rgba(239,68,68,.15);color:#ef4444}
 
-/* ── 컨트롤 바: 항상 하단 고정, 절대 밀리지 않음 ── */
-#ctrl-bar{
-  background:var(--card);border-top:1px solid var(--border);
-  padding:6px 8px;display:flex;align-items:center;gap:5px;
-  flex-shrink:0;flex-wrap:nowrap;min-height:52px;overflow-x:auto;
-  scrollbar-width:none;
-}
+/* CTRL BAR */
+#ctrl-bar{background:var(--card);border-top:1px solid var(--border);
+  padding:5px 8px;display:flex;align-items:center;gap:5px;
+  flex-shrink:0;overflow-x:auto;scrollbar-width:none;min-height:50px}
 #ctrl-bar::-webkit-scrollbar{display:none}
-.btn{
-  border:none;border-radius:10px;font-size:11px;font-weight:600;cursor:pointer;
-  padding:0 10px;height:38px;transition:opacity .15s;white-space:nowrap;flex-shrink:0;
-}
+.btn{border:none;border-radius:10px;font-size:11px;font-weight:600;cursor:pointer;
+  padding:0 10px;height:38px;transition:opacity .15s;white-space:nowrap;flex-shrink:0}
 .btn:active{opacity:.6}
 .btn-src{background:rgba(255,255,255,.1);color:var(--txt)}
 .btn-src.on{background:var(--blue);color:#fff}
-.btn-icon{background:rgba(255,255,255,.08);color:var(--txt2);font-size:16px;
-  width:38px;padding:0;border-radius:10px}
+.btn-icon{background:rgba(255,255,255,.08);color:var(--txt2);font-size:15px;width:38px;padding:0;border-radius:10px}
 .btn-icon.on{background:rgba(34,197,94,.2);color:var(--green)}
 .btn-rec{background:rgba(239,68,68,.15);color:var(--red);border:1px solid rgba(239,68,68,.3)}
 .btn-rec.on{background:var(--red);color:#fff;border-color:var(--red)}
-.btn-main{
-  background:var(--green);color:#fff;
-  height:42px;padding:0 16px;font-size:13px;font-weight:700;
-  border-radius:12px;margin-left:2px;flex-shrink:0;
-}
+.btn-main{background:var(--green);color:#fff;height:42px;padding:0 16px;font-size:13px;font-weight:700;border-radius:12px;margin-left:2px;flex-shrink:0}
 .btn-main.stop{background:var(--red)}
 .sep{flex:1;min-width:4px}
-#spd-sel{
-  background:rgba(255,255,255,.1);color:var(--txt);border:1px solid var(--border);
-  border-radius:8px;padding:0 6px;font-size:11px;cursor:pointer;
-  height:34px;flex-shrink:0;
-}
-#file-name{font-size:10px;color:var(--txt2);max-width:70px;overflow:hidden;
-  text-overflow:ellipsis;white-space:nowrap;flex-shrink:0}
-
-/* 소형 화면 대응 */
-@media(max-width:380px){
-  #right-panel{width:100px}
-  .btn{font-size:10px;padding:0 8px;height:36px}
-  .btn-main{padding:0 12px;font-size:12px}
-  .do-val{font-size:12px}
-}
+#spd-sel{background:rgba(255,255,255,.1);color:var(--txt);border:1px solid var(--border);
+  border-radius:8px;padding:0 6px;font-size:11px;cursor:pointer;height:34px;flex-shrink:0}
+#file-name{font-size:10px;color:var(--txt2);max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0}
+@media(max-width:380px){#right-panel{width:104px}.btn{font-size:10px}.btn-main{padding:0 12px}}
 </style>
 </head>
 <body>
 
 <header>
   <div>
-    <span class="h-logo">APL <span class="accent">3D</span></span>
-    <span class="h-ver">v3</span>
+    <span class="h-logo">APL <span class="accent" id="accent-txt">3D</span></span>
+    <span class="h-ver">v4</span>
   </div>
   <div class="h-right">
     <button class="h-btn" id="btn-reset">↺</button>
@@ -216,25 +163,21 @@ header{
     <video id="vid" autoplay muted playsinline></video>
     <canvas id="cvs"></canvas>
 
-    <!-- 로딩 -->
     <div id="load-overlay">
       <div class="spinner"></div>
       <div id="load-txt">MediaPipe 모델 로딩 중...</div>
       <div class="load-sub">처음 1-2분 소요될 수 있습니다</div>
     </div>
-
-    <!-- 미감지 -->
     <div id="no-det" class="on"></div>
 
-    <!-- FPS / 상태 칩 -->
     <div id="info-bar">
       <div class="chip" id="chip-fps">-- fps</div>
       <div class="chip blue">3D</div>
       <div class="chip red" id="chip-rec" style="display:none">● REC</div>
-      <div class="chip green" id="chip-ghost" style="display:none">👻 Base</div>
+      <div class="chip green" id="chip-ghost" style="display:none">👻 기준</div>
     </div>
 
-    <!-- 실시간 데이터 오버레이 (비디오 위 오른쪽) -->
+    <!-- 실시간 데이터 오버레이 -->
     <div id="data-ov">
       <div class="do-row">
         <span class="do-lbl" id="do-lbl-sh">어깨</span>
@@ -248,14 +191,14 @@ header{
         <span class="do-lbl">X</span>
         <span class="do-val" id="do-xf" style="color:var(--green)">--°</span>
       </div>
-      <div class="do-divider"></div>
+      <div class="do-div"></div>
       <div class="do-row">
         <span class="do-lbl" id="do-lbl-spd">손목</span>
         <span class="do-val" id="do-spd" style="color:var(--blue)">--</span>
       </div>
     </div>
 
-    <!-- 그래프 오버레이 (비디오 하단, 슬라이드) -->
+    <!-- 그래프 오버레이 -->
     <div id="graph-ov" class="hidden">
       <div id="graph-hdr">
         <span id="graph-lbl"></span>
@@ -265,7 +208,7 @@ header{
     </div>
   </div>
 
-  <!-- 오른쪽 상세 패널 -->
+  <!-- 오른쪽 패널 -->
   <div id="right-panel">
     <div class="rp-sec" id="alert-sec" style="display:none">
       <div class="rp-title" id="rp-t-alert">피드백</div>
@@ -273,29 +216,14 @@ header{
     </div>
     <div class="rp-sec">
       <div class="rp-title" id="rp-t-rot">회전각 3D</div>
-      <div class="rp-row">
-        <span class="rp-lbl" id="rp-sh">어깨</span>
-        <span class="rp-val" id="rv-sh" style="color:var(--purple)">--°</span>
-      </div>
-      <div class="rp-row">
-        <span class="rp-lbl" id="rp-hip">골반</span>
-        <span class="rp-val" id="rv-hip" style="color:var(--orange)">--°</span>
-      </div>
-      <div class="rp-row">
-        <span class="rp-lbl">X-factor</span>
-        <span class="rp-val" id="rv-xf" style="color:var(--green)">--°</span>
-      </div>
+      <div class="rp-row"><span class="rp-lbl" id="rp-sh">어깨</span><span class="rp-val" id="rv-sh" style="color:var(--purple)">--°</span></div>
+      <div class="rp-row"><span class="rp-lbl" id="rp-hip">골반</span><span class="rp-val" id="rv-hip" style="color:var(--orange)">--°</span></div>
+      <div class="rp-row"><span class="rp-lbl">X-factor</span><span class="rp-val" id="rv-xf" style="color:var(--green)">--°</span></div>
     </div>
     <div class="rp-sec">
       <div class="rp-title" id="rp-t-pos">자세 3D</div>
-      <div class="rp-row">
-        <span class="rp-lbl" id="rp-spine">척추</span>
-        <span class="rp-val" id="rv-spine">--°</span>
-      </div>
-      <div class="rp-row">
-        <span class="rp-lbl" id="rp-lean">전방</span>
-        <span class="rp-val" id="rv-lean">--°</span>
-      </div>
+      <div class="rp-row"><span class="rp-lbl" id="rp-spine">척추</span><span class="rp-val" id="rv-spine">--°</span></div>
+      <div class="rp-row"><span class="rp-lbl" id="rp-lean">전방</span><span class="rp-val" id="rv-lean">--°</span></div>
     </div>
     <div class="rp-sec" id="joint-sec" style="display:none">
       <div class="rp-title" id="rp-t-joint">관절 각도</div>
@@ -316,7 +244,7 @@ header{
   </div>
 </div>
 
-<!-- 컨트롤 바: 항상 하단 고정 -->
+<!-- 컨트롤 바 -->
 <div id="ctrl-bar">
   <button class="btn btn-src on" id="btn-cam">📷</button>
   <button class="btn btn-src" id="btn-file">📁</button>
@@ -328,9 +256,9 @@ header{
     <option value="0.25">¼×</option>
     <option value="0.125">⅛×</option>
   </select>
-  <button class="btn btn-icon" id="btn-graph" title="그래프">📈</button>
-  <button class="btn btn-icon" id="btn-ghost" title="기준설정">👻</button>
-  <button class="btn btn-rec" id="btn-rec">⏺</button>
+  <button class="btn btn-icon" id="btn-graph" title="그래프 토글">📈</button>
+  <button class="btn btn-icon" id="btn-ghost" id="btn-ghost-btn" title="기준 자세 고정 — 현재 프레임을 반투명 초록 골격으로 고정해 이후 동작과 비교">👻</button>
+  <button class="btn btn-rec" id="btn-rec">⏺ 녹화</button>
   <div class="sep"></div>
   <button class="btn btn-main" id="btn-main">▶ 시작</button>
 </div>
@@ -340,6 +268,7 @@ import{PoseLandmarker,FilesetResolver}from"https://cdn.jsdelivr.net/npm/@mediapi
 const WASM="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/wasm";
 const MODEL="https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task";
 const GRAPH_MS=5000,SMOOTH_MS=80,MAX_MS=6.0,ARR_PX=40;
+const REC_MAX=1920, REC_BPS=12_000_000;
 
 const BONES=[[11,12],[23,24],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],
   [23,25],[25,27],[24,26],[26,28],[27,29],[28,30],[0,11],[0,12]];
@@ -352,7 +281,6 @@ const TRACK=[
   {id:'knee',   ko:'무릎',   en:'Knee',     idx:[25,26],col:'#22c55e'},
   {id:'ankle',  ko:'발목',   en:'Ankle',    idx:[27,28],col:'#ef4444'},
 ];
-
 const KP_COL={15:'#3b82f6',16:'#3b82f6',13:'#06b6d4',14:'#06b6d4',
   11:'#a855f7',12:'#a855f7',23:'#f97316',24:'#f97316',
   25:'#22c55e',26:'#22c55e',27:'#ef4444',28:'#ef4444'};
@@ -360,50 +288,32 @@ const KP_COL={15:'#3b82f6',16:'#3b82f6',13:'#06b6d4',14:'#06b6d4',
 const SPORTS={
   GEN:{ko:'일반',en:'General',col:'#3b82f6',joints:[],checks:[]},
   SPL:{ko:'피겨/스케이팅',en:'Skating',col:'#06b6d4',
-    joints:[
-      {id:'lknee',ko:'왼무릎',en:'L.Knee',pts:[23,25,27],col:'#22c55e'},
-      {id:'rknee',ko:'오른무릎',en:'R.Knee',pts:[24,26,28],col:'#eab308'},
-    ],
-    checks:[{id:'knee',ko_ok:'무릎 굽힘 양호',ko_warn:'무릎 굽힘 부족',ko_bad:'과신전 주의',
-      en_ok:'Knee bend OK',en_warn:'Bend more',en_bad:'Hyperextension!',
-      fn:a=>a.lknee<170?(a.lknee<100?'bad':'ok'):'warn'}]},
+    joints:[{id:'lknee',ko:'왼무릎',en:'L.Knee',pts:[23,25,27],col:'#22c55e'},{id:'rknee',ko:'오른무릎',en:'R.Knee',pts:[24,26,28],col:'#eab308'}],
+    checks:[{ko_ok:'무릎 굽힘 양호',ko_warn:'무릎 굽힘 부족',ko_bad:'과신전 주의',en_ok:'Knee bend OK',en_warn:'Bend more',en_bad:'Hyperextension!',fn:a=>a.lknee<170?(a.lknee<100?'bad':'ok'):'warn'}]},
   GPL:{ko:'골프',en:'Golf',col:'#22c55e',
-    joints:[
-      {id:'lknee',ko:'왼무릎',en:'L.Knee',pts:[23,25,27],col:'#22c55e'},
-      {id:'lelbow',ko:'왼팔꿈치',en:'L.Elbow',pts:[11,13,15],col:'#06b6d4'},
-    ],
-    checks:[{id:'xf',ko_ok:'X-factor 우수',ko_warn:'회전 개선 필요',ko_bad:'회전 부족',
-      en_ok:'X-factor excellent',en_warn:'Improve rotation',en_bad:'Too small',
-      fn:a=>Math.abs(a.xf)>=25?'ok':Math.abs(a.xf)>=12?'warn':'bad'}]},
+    joints:[{id:'lknee',ko:'왼무릎',en:'L.Knee',pts:[23,25,27],col:'#22c55e'},{id:'lelbow',ko:'왼팔꿈치',en:'L.Elbow',pts:[11,13,15],col:'#06b6d4'}],
+    checks:[{ko_ok:'X-factor 우수',ko_warn:'회전 개선 필요',ko_bad:'회전 부족',en_ok:'X-factor excellent',en_warn:'Improve rotation',en_bad:'Too small',fn:a=>Math.abs(a.xf)>=25?'ok':Math.abs(a.xf)>=12?'warn':'bad'}]},
   BPL:{ko:'야구/농구',en:'Baseball/Bball',col:'#f97316',
-    joints:[
-      {id:'lknee',ko:'왼무릎',en:'L.Knee',pts:[23,25,27],col:'#22c55e'},
-      {id:'rknee',ko:'오른무릎',en:'R.Knee',pts:[24,26,28],col:'#eab308'},
-      {id:'lelbow',ko:'왼팔꿈치',en:'L.Elbow',pts:[11,13,15],col:'#06b6d4'},
-      {id:'relbow',ko:'오른팔꿈치',en:'R.Elbow',pts:[12,14,16],col:'#a855f7'},
-    ],
-    checks:[{id:'sh',ko_ok:'어깨 회전 양호',ko_warn:'어깨 회전 확인',ko_bad:'회전 부족',
-      en_ok:'Shoulder OK',en_warn:'Check rotation',en_bad:'Insufficient',
-      fn:a=>Math.abs(a.shR)>=30?'ok':Math.abs(a.shR)>=15?'warn':'bad'}]},
+    joints:[{id:'lknee',ko:'왼무릎',en:'L.Knee',pts:[23,25,27],col:'#22c55e'},{id:'rknee',ko:'오른무릎',en:'R.Knee',pts:[24,26,28],col:'#eab308'},{id:'lelbow',ko:'왼팔꿈치',en:'L.Elbow',pts:[11,13,15],col:'#06b6d4'},{id:'relbow',ko:'오른팔꿈치',en:'R.Elbow',pts:[12,14,16],col:'#a855f7'}],
+    checks:[{ko_ok:'어깨 회전 양호',ko_warn:'어깨 회전 확인',ko_bad:'회전 부족',en_ok:'Shoulder OK',en_warn:'Check rotation',en_bad:'Insufficient',fn:a=>Math.abs(a.shR)>=30?'ok':Math.abs(a.shR)>=15?'warn':'bad'}]},
   TPL:{ko:'테니스',en:'Tennis',col:'#a855f7',
-    joints:[
-      {id:'lelbow',ko:'왼팔꿈치',en:'L.Elbow',pts:[11,13,15],col:'#06b6d4'},
-      {id:'relbow',ko:'오른팔꿈치',en:'R.Elbow',pts:[12,14,16],col:'#a855f7'},
-    ],
-    checks:[{id:'xf',ko_ok:'X-factor 양호',ko_warn:'상체 회전 확인',ko_bad:'회전 부족',
-      en_ok:'X-factor OK',en_warn:'Check rotation',en_bad:'Too small',
-      fn:a=>Math.abs(a.xf)>=20?'ok':Math.abs(a.xf)>=10?'warn':'bad'}]},
+    joints:[{id:'lelbow',ko:'왼팔꿈치',en:'L.Elbow',pts:[11,13,15],col:'#06b6d4'},{id:'relbow',ko:'오른팔꿈치',en:'R.Elbow',pts:[12,14,16],col:'#a855f7'}],
+    checks:[{ko_ok:'X-factor 양호',ko_warn:'상체 회전 확인',ko_bad:'회전 부족',en_ok:'X-factor OK',en_warn:'Check rotation',en_bad:'Too small',fn:a=>Math.abs(a.xf)>=20?'ok':Math.abs(a.xf)>=10?'warn':'bad'}]},
 };
 
 /* ── 상태 ── */
 let det=null,live=false,src='camera',stream=null,raf=null,lang='ko';
 let wH=[],vH={},peak={},cur={},lastA={};
+let lastLm=null,lastWlm=null,lastWlmPrev=null;
 let sel=new Set(['wrist','ankle','shoulder','hip']);
 let fN=0,fT=0,sport='GEN';
 let ghostLm=null,showGhost=false;
-let recorder=null,recChunks=[],isRec=false;
 let showGraph=false;
-let dataLog=[];
+// 녹화
+let recorder=null,recChunks=[],isRec=false,_compInterval=null;
+const compCvs=document.createElement('canvas');
+const compCtx=compCvs.getContext('2d');
+let compW=1280,compH=720;
 
 const $=id=>document.getElementById(id);
 const vid=$('vid'),cvs=$('cvs'),ctx=cvs.getContext('2d');
@@ -429,23 +339,17 @@ async function init(){
 function events(){
   $('btn-cam').onclick=()=>setMode('camera');
   $('btn-file').onclick=()=>$('file-input').click();
-  $('file-input').onchange=e=>{
-    const f=e.target.files[0];if(!f)return;
-    setMode('file',f);$('file-name').textContent=f.name;
-  };
+  $('file-input').onchange=e=>{const f=e.target.files[0];if(!f)return;setMode('file',f);$('file-name').textContent=f.name;};
   $('btn-main').onclick=()=>live?stop_ana():start_ana();
   $('spd-sel').onchange=()=>{if(vid.src||vid.srcObject)vid.playbackRate=+$('spd-sel').value;};
   $('btn-lang').onclick=()=>{lang=lang==='ko'?'en':'ko';lang_apply();};
   $('btn-reset').onclick=()=>{peak={};buildRows();};
-  $('btn-graph').onclick=()=>{
-    showGraph=!showGraph;
-    $('graph-ov').classList.toggle('hidden',!showGraph);
-    $('btn-graph').classList.toggle('on',showGraph);
-  };
+  $('btn-graph').onclick=()=>{showGraph=!showGraph;$('graph-ov').classList.toggle('hidden',!showGraph);$('btn-graph').classList.toggle('on',showGraph);};
   $('btn-ghost').onclick=()=>{
-    if(!live){return;}
-    if(showGhost){showGhost=false;ghostLm=null;}
-    else{ghostLm=wH.length?[...wH[wH.length-1].wlm]:null;showGhost=!!ghostLm;}
+    if(!live)return;
+    showGhost=!showGhost;
+    if(showGhost&&wH.length)ghostLm=[...wH[wH.length-1].wlm];
+    else{showGhost=false;ghostLm=null;}
     $('chip-ghost').style.display=showGhost?'':'none';
     $('btn-ghost').classList.toggle('on',showGhost);
   };
@@ -461,44 +365,28 @@ function setSport(s){
   document.documentElement.style.setProperty('--sport',SPORTS[s].col);
   buildJoints();lang_apply();
 }
-
 function setMode(mode,file){
   src=mode;
   $('btn-cam').classList.toggle('on',mode==='camera');
   $('btn-file').classList.toggle('on',mode==='file');
   $('file-name').textContent='';
-  if(mode==='file'&&file){
-    const url=URL.createObjectURL(file);
-    vid.srcObject=null;vid.src=url;vid.load();
-  }
+  if(mode==='file'&&file){const url=URL.createObjectURL(file);vid.srcObject=null;vid.src=url;vid.load();}
 }
 
-/* ── 시작 / 중지 ── */
+/* ── 시작/중지 ── */
 async function start_ana(){
-  if(!det){alert('모델 로딩 중입니다. 잠시 후 다시 시도하세요.');return;}
+  if(!det){alert('모델 로딩 중입니다.');return;}
   if(src==='camera'){
-    try{
-      stream=await navigator.mediaDevices.getUserMedia(
-        {video:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}},audio:false});
-      vid.srcObject=stream;vid.removeAttribute('src');await vid.play();
-    }catch(e1){
-      try{stream=await navigator.mediaDevices.getUserMedia({video:true,audio:false});
-        vid.srcObject=stream;await vid.play();}
-      catch(e2){alert('카메라 오류: '+e2.message);return;}
-    }
-  }else{
-    vid.playbackRate=+$('spd-sel').value;vid.currentTime=0;
-    await vid.play().catch(()=>{});
-  }
+    try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}},audio:false});vid.srcObject=stream;vid.removeAttribute('src');await vid.play();}
+    catch(e1){try{stream=await navigator.mediaDevices.getUserMedia({video:true,audio:false});vid.srcObject=stream;await vid.play();}catch(e2){alert('카메라 오류: '+e2.message);return;}}
+  }else{vid.playbackRate=+$('spd-sel').value;vid.currentTime=0;await vid.play().catch(()=>{});}
   vid.classList.add('show');
-  live=true;wH=[];vH={};cur={};lastA={};dataLog=[];fN=0;fT=performance.now();
-  const ko=lang==='ko';
-  $('btn-main').textContent=ko?'■ 중지':'■ Stop';
+  live=true;wH=[];vH={};cur={};lastA={};lastLm=null;lastWlm=null;lastWlmPrev=null;fN=0;fT=performance.now();
+  $('btn-main').textContent=lang==='ko'?'■ 중지':'■ Stop';
   $('btn-main').className='btn btn-main stop';
   $('no-det').classList.remove('on');
   loop();
 }
-
 function stop_ana(){
   live=false;
   if(isRec)stopRec();
@@ -506,226 +394,357 @@ function stop_ana(){
   if(src==='camera'&&stream){stream.getTracks().forEach(t=>t.stop());stream=null;vid.srcObject=null;}
   else vid.pause();
   vid.classList.remove('show');
-  const ko=lang==='ko';
-  $('btn-main').textContent=ko?'▶ 시작':'▶ Start';
+  $('btn-main').textContent=lang==='ko'?'▶ 시작':'▶ Start';
   $('btn-main').className='btn btn-main';
   $('no-det').classList.add('on');
   ctx.clearRect(0,0,cvs.width,cvs.height);
 }
 
-/* ── 메인 루프 ── */
+/* ── 루프 ── */
 function loop(){
   if(!live)return;
   const t=performance.now();
   if(vid.readyState>=2&&!vid.paused){
     try{const r=det.detectForVideo(vid,t);frame(r,t);}catch(e){console.warn(e);}
     fN++;
-    if(t-fT>=1000){
-      $('chip-fps').textContent=Math.round(fN*1000/(t-fT))+' fps';
-      fN=0;fT=t;
-    }
+    if(t-fT>=1000){$('chip-fps').textContent=Math.round(fN*1000/(t-fT))+' fps';fN=0;fT=t;}
   }
   raf=requestAnimationFrame(loop);
 }
 
-/* ── 프레임 처리 ── */
+/* ── 프레임 ── */
 function frame(res,t){
   resize();ctx.clearRect(0,0,cvs.width,cvs.height);
-  if(!res.worldLandmarks||!res.worldLandmarks.length){
-    $('no-det').classList.add('on');return;
-  }
+  if(!res.worldLandmarks||!res.worldLandmarks.length){$('no-det').classList.add('on');return;}
   $('no-det').classList.remove('on');
   const lm=res.landmarks[0],wlm=res.worldLandmarks[0];
+  lastWlmPrev=lastWlm;lastLm=lm;lastWlm=wlm;
   wH.push({wlm,t});
-  const cut=t-GRAPH_MS-2000;
-  while(wH.length>1&&wH[0].t<cut)wH.shift();
-  if(showGhost&&ghostLm)draw_ghost(lm,ghostLm);
-  draw_sk(lm,wlm);
-  draw_arr(lm,wlm);
-  const a=angles3d(wlm);
-  vel(wlm,t);
-  lastA=a;
-  if(dataLog.length===0||t-dataLog[dataLog.length-1].t>100){
-    dataLog.push({t:Math.round(t),
-      sh:a.shR,hip:a.hipR,xf:a.xf,spine:a.sp,lean:a.fl,
-      lknee:a.lknee,rknee:a.rknee,lelbow:a.lelbow,relbow:a.relbow,
-      ...Object.fromEntries(TRACK.map(p=>[p.id+'_spd',+(cur[p.id]||0).toFixed(3)]))
-    });
-  }
-  update_panel(a);
-  update_data_ov(a);
+  const cut=t-GRAPH_MS-2000;while(wH.length>1&&wH[0].t<cut)wH.shift();
+  if(showGhost&&ghostLm)draw_ghost_on(ctx,cvs.width,cvs.height,lm,ghostLm);
+  draw_sk_on(ctx,cvs.width,cvs.height,lm,wlm);
+  draw_arr_on(ctx,cvs.width,cvs.height,lm,wlm);
+  const a=angles3d(wlm);vel(wlm,t);lastA=a;
+  update_panel(a);update_data_ov(a);
   if(showGraph)draw_graph(t);
 }
 
 /* ── 각도 계산 ── */
 function angle3pts(a,b,c){
-  const v1={x:a.x-b.x,y:a.y-b.y,z:a.z-b.z};
-  const v2={x:c.x-b.x,y:c.y-b.y,z:c.z-b.z};
+  const v1={x:a.x-b.x,y:a.y-b.y,z:a.z-b.z},v2={x:c.x-b.x,y:c.y-b.y,z:c.z-b.z};
   const dot=v1.x*v2.x+v1.y*v2.y+v1.z*v2.z;
   const m1=Math.hypot(v1.x,v1.y,v1.z),m2=Math.hypot(v2.x,v2.y,v2.z);
   return m1&&m2?Math.round(Math.acos(Math.min(1,Math.max(-1,dot/(m1*m2))))*180/Math.PI):0;
 }
-
 function angles3d(w){
   const R=180/Math.PI;
   const shR=Math.round(Math.atan2(w[12].z-w[11].z,w[12].x-w[11].x)*R);
   const hipR=Math.round(Math.atan2(w[24].z-w[23].z,w[24].x-w[23].x)*R);
   let xf=shR-hipR;if(xf>180)xf-=360;if(xf<-180)xf+=360;
-  const sx=(w[11].x+w[12].x)/2-(w[23].x+w[24].x)/2;
-  const sy=(w[11].y+w[12].y)/2-(w[23].y+w[24].y)/2;
-  const sz=(w[11].z+w[12].z)/2-(w[23].z+w[24].z)/2;
+  const sx=(w[11].x+w[12].x)/2-(w[23].x+w[24].x)/2,sy=(w[11].y+w[12].y)/2-(w[23].y+w[24].y)/2,sz=(w[11].z+w[12].z)/2-(w[23].z+w[24].z)/2;
   const sl=Math.hypot(sx,sy,sz);
   const sp=sl>0.05?Math.round(Math.acos(Math.min(1,Math.abs(sy)/sl))*R):0;
   const fl=sl>0.05?Math.round(Math.atan2(sz,Math.abs(sy))*R):0;
-  const lknee=angle3pts(w[23],w[25],w[27]);
-  const rknee=angle3pts(w[24],w[26],w[28]);
-  const lelbow=angle3pts(w[11],w[13],w[15]);
-  const relbow=angle3pts(w[12],w[14],w[16]);
-  return{shR,hipR,xf:Math.round(xf),sp,fl,lknee,rknee,lelbow,relbow};
+  return{shR,hipR,xf:Math.round(xf),sp,fl,
+    lknee:angle3pts(w[23],w[25],w[27]),rknee:angle3pts(w[24],w[26],w[28]),
+    lelbow:angle3pts(w[11],w[13],w[15]),relbow:angle3pts(w[12],w[14],w[16])};
 }
 
-/* ── 속도 계산 ── */
+/* ── 속도 ── */
 function vel(wlm,t){
   if(wH.length<2)return;
-  const prev=wH[wH.length-2];
-  const dt=(t-prev.t)/1000;
+  const prev=wH[wH.length-2],dt=(t-prev.t)/1000;
   if(dt<=0||dt>0.3)return;
   TRACK.forEach(p=>{
     if(!sel.has(p.id))return;
     let sum=0,cnt=0;
-    p.idx.forEach(i=>{
-      const c=wlm[i],q=prev.wlm[i];if(!c||!q)return;
-      sum+=Math.hypot(c.x-q.x,c.y-q.y,c.z-q.z)/dt;cnt++;
-    });
+    p.idx.forEach(i=>{const c=wlm[i],q=prev.wlm[i];if(!c||!q)return;sum+=Math.hypot(c.x-q.x,c.y-q.y,c.z-q.z)/dt;cnt++;});
     if(!cnt)return;
     const v=sum/cnt;
     if(!vH[p.id])vH[p.id]=[];
     vH[p.id].push({v,t});
-    const cut=t-GRAPH_MS-500;
-    while(vH[p.id].length>1&&vH[p.id][0].t<cut)vH[p.id].shift();
+    const cut=t-GRAPH_MS-500;while(vH[p.id].length>1&&vH[p.id][0].t<cut)vH[p.id].shift();
     const rec=vH[p.id].filter(e=>e.t>=t-SMOOTH_MS);
     const sv=rec.length?rec.reduce((s,e)=>s+e.v,0)/rec.length:v;
-    cur[p.id]=sv;
-    if(!peak[p.id]||sv>peak[p.id])peak[p.id]=sv;
+    cur[p.id]=sv;if(!peak[p.id]||sv>peak[p.id])peak[p.id]=sv;
   });
 }
 
-/* ── 스켈레톤 그리기 ── */
-function draw_sk(lm,wlm){
-  const W=cvs.width,H=cvs.height;
+/* ══════════════════════════════════════
+   스켈레톤 드로우 (공용 — ctx/W/H 인자)
+   2D 앱과 동일: lineWidth=3, radius=8, opacity=0.70
+   ══════════════════════════════════════ */
+function draw_sk_on(c,W,H,lm,wlm){
   const p=i=>({x:lm[i].x*W,y:lm[i].y*H,z:wlm[i].z,vi:lm[i].visibility||0});
   BONES.forEach(([a,b])=>{
     const pa=p(a),pb=p(b);if(pa.vi<0.3||pb.vi<0.3)return;
     const d=Math.max(-0.4,Math.min(0.4,(pa.z+pb.z)/2));
-    ctx.beginPath();ctx.moveTo(pa.x,pa.y);ctx.lineTo(pb.x,pb.y);
-    ctx.strokeStyle=`rgba(100,160,255,${(0.5+d*0.3).toFixed(2)})`;
-    ctx.lineWidth=2.5;ctx.stroke();
+    c.beginPath();c.moveTo(pa.x,pa.y);c.lineTo(pb.x,pb.y);
+    c.strokeStyle=`rgba(100,160,255,${(0.60+d*0.10).toFixed(2)})`;
+    c.lineWidth=3;c.stroke();
   });
+  // 척추 중심선
   const mshx=(lm[11].x+lm[12].x)/2*W,mshy=(lm[11].y+lm[12].y)/2*H;
   const mhx=(lm[23].x+lm[24].x)/2*W,mhy=(lm[23].y+lm[24].y)/2*H;
-  ctx.setLineDash([5,4]);
-  ctx.beginPath();ctx.moveTo(mhx,mhy);ctx.lineTo(mshx,mshy);
-  ctx.strokeStyle='rgba(250,230,80,.55)';ctx.lineWidth=2;ctx.stroke();
-  ctx.setLineDash([]);
+  c.setLineDash([6,4]);c.beginPath();c.moveTo(mhx,mhy);c.lineTo(mshx,mshy);
+  c.strokeStyle='rgba(250,230,80,.55)';c.lineWidth=2;c.stroke();c.setLineDash([]);
+  // 키포인트
   for(let i=0;i<lm.length;i++){
     const pp=p(i);if(pp.vi<0.35)continue;
-    ctx.beginPath();ctx.arc(pp.x,pp.y,5,0,Math.PI*2);
-    ctx.fillStyle=KP_COL[i]||'rgba(180,180,180,.6)';ctx.fill();
+    c.beginPath();c.arc(pp.x,pp.y,8,0,Math.PI*2);
+    c.fillStyle=KP_COL[i]||'rgba(200,200,200,.7)';c.fill();
+    c.strokeStyle='rgba(0,0,0,.4)';c.lineWidth=2;c.stroke();
+    // Z-depth 링
     if(Math.abs(pp.z)>0.06){
-      ctx.beginPath();ctx.arc(pp.x,pp.y,8+Math.abs(pp.z)*12,0,Math.PI*2);
-      ctx.strokeStyle=pp.z<0?'rgba(0,200,255,.35)':'rgba(255,120,0,.25)';
-      ctx.lineWidth=1.5;ctx.stroke();
+      c.beginPath();c.arc(pp.x,pp.y,10+Math.abs(pp.z)*15,0,Math.PI*2);
+      c.strokeStyle=pp.z<0?'rgba(0,200,255,.35)':'rgba(255,120,0,.25)';
+      c.lineWidth=2;c.stroke();
     }
   }
 }
 
-/* ── 기준 고스트 ── */
-function draw_ghost(curLm,ghostWlm){
-  const W=cvs.width,H=cvs.height;
-  ctx.globalAlpha=0.35;
-  BONES.forEach(([a,b])=>{
-    const av=curLm[a].visibility||0,bv=curLm[b].visibility||0;
-    if(av<0.3||bv<0.3)return;
-    ctx.beginPath();
-    ctx.moveTo(curLm[a].x*W,curLm[a].y*H);
-    ctx.lineTo(curLm[b].x*W,curLm[b].y*H);
-    ctx.strokeStyle='rgba(0,255,180,.8)';ctx.lineWidth=3;ctx.stroke();
-  });
-  for(let i=0;i<Math.min(33,curLm.length);i++){
-    if((curLm[i].visibility||0)<0.35)continue;
-    ctx.beginPath();ctx.arc(curLm[i].x*W,curLm[i].y*H,6,0,Math.PI*2);
-    ctx.fillStyle='rgba(0,255,180,.7)';ctx.fill();
-  }
-  ctx.globalAlpha=1;
-}
-
-/* ── 속도 화살표 ── */
-function draw_arr(lm,wlm){
+/* ── 속도 화살표 (공용) ── */
+function draw_arr_on(c,W,H,lm,wlm){
   if(wH.length<2)return;
   const prev=wH[wH.length-2];
-  const W=cvs.width,H=cvs.height;
   TRACK.forEach(p=>{
-    if(!sel.has(p.id))return;
-    const v=cur[p.id]||0;if(v<0.15)return;
+    if(!sel.has(p.id))return;const v=cur[p.id]||0;if(v<0.15)return;
     p.idx.forEach(i=>{
-      const cx=lm[i].x*W,cy=lm[i].y*H;
-      const pw=prev.wlm[i];if(!pw)return;
+      const cx=lm[i].x*W,cy=lm[i].y*H;const pw=prev.wlm[i];if(!pw)return;
       const dx=(wlm[i].x-pw.x)*W*5,dy=(wlm[i].y-pw.y)*H*5;
-      const dist=Math.hypot(dx,dy)||1;
-      const sc=Math.min(v*ARR_PX,70);
-      const ex=cx+(dx/dist)*sc,ey=cy+(dy/dist)*sc;
-      const ang=Math.atan2(dy,dx);
-      ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(ex,ey);
-      ctx.strokeStyle=p.col+'cc';ctx.lineWidth=2.5;ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(ex,ey);
-      ctx.lineTo(ex-9*Math.cos(ang-.42),ey-9*Math.sin(ang-.42));
-      ctx.lineTo(ex-9*Math.cos(ang+.42),ey-9*Math.sin(ang+.42));
-      ctx.closePath();ctx.fillStyle=p.col+'cc';ctx.fill();
+      const dist=Math.hypot(dx,dy)||1;const sc=Math.min(v*ARR_PX,70);
+      const ex=cx+(dx/dist)*sc,ey=cy+(dy/dist)*sc;const ang=Math.atan2(dy,dx);
+      c.beginPath();c.moveTo(cx,cy);c.lineTo(ex,ey);c.strokeStyle=p.col+'cc';c.lineWidth=2.5;c.stroke();
+      c.beginPath();c.moveTo(ex,ey);
+      c.lineTo(ex-9*Math.cos(ang-.42),ey-9*Math.sin(ang-.42));
+      c.lineTo(ex-9*Math.cos(ang+.42),ey-9*Math.sin(ang+.42));
+      c.closePath();c.fillStyle=p.col+'cc';c.fill();
     });
   });
 }
 
-/* ── 데이터 오버레이 업데이트 ── */
+/* ── 고스트 (공용) ── */
+function draw_ghost_on(c,W,H,curLm,ghostWlm){
+  c.globalAlpha=0.35;
+  BONES.forEach(([a,b])=>{
+    const av=curLm[a].visibility||0,bv=curLm[b].visibility||0;if(av<0.3||bv<0.3)return;
+    c.beginPath();c.moveTo(curLm[a].x*W,curLm[a].y*H);c.lineTo(curLm[b].x*W,curLm[b].y*H);
+    c.strokeStyle='rgba(0,255,180,.8)';c.lineWidth=3;c.stroke();
+  });
+  for(let i=0;i<Math.min(33,curLm.length);i++){
+    if((curLm[i].visibility||0)<0.35)continue;
+    c.beginPath();c.arc(curLm[i].x*W,curLm[i].y*H,8,0,Math.PI*2);
+    c.fillStyle='rgba(0,255,180,.7)';c.fill();
+  }
+  c.globalAlpha=1;
+}
+
+/* ══════════════════════════════════════
+   녹화 캔버스 — 비디오 + 스켈레톤 + 데이터 패널 합성
+   해상도: 최대 1920px, 비트레이트: 12Mbps (2D 앱과 동일)
+   ══════════════════════════════════════ */
+function initCompCanvas(){
+  const vW=vid.videoWidth||1280,vH=vid.videoHeight||720;
+  const scale=Math.min(REC_MAX/Math.max(vW,vH),1);
+  compW=Math.round(vW*scale);compH=Math.round(vH*scale);
+  compCvs.width=compW;compCvs.height=compH;
+}
+
+function drawCompFrame(){
+  if(!live)return;
+  // 1. 비디오 프레임
+  if(vid.readyState>=2){
+    compCtx.drawImage(vid,0,0,compW,compH);
+  }else{
+    compCtx.fillStyle='#000';compCtx.fillRect(0,0,compW,compH);
+  }
+  // 2. 고스트
+  if(showGhost&&ghostLm&&lastLm)draw_ghost_on(compCtx,compW,compH,lastLm,ghostLm);
+  // 3. 스켈레톤 + 화살표
+  if(lastLm&&lastWlm){
+    draw_sk_on(compCtx,compW,compH,lastLm,lastWlm);
+    draw_arr_on(compCtx,compW,compH,lastLm,lastWlm);
+  }
+  // 4. 오른쪽 데이터 패널
+  draw_comp_panel(compCtx,compW,compH);
+}
+
+function draw_comp_panel(c,W,H){
+  const ko=lang==='ko';
+  const pW=Math.round(W*0.28);  // 패널 너비: 영상 가로의 28%
+  const pad=Math.round(H*0.016);
+  const fs=Math.max(12,Math.round(H*0.022));   // 본문 폰트 (2D 앱 비례 방식)
+  const fsS=Math.max(10,Math.round(H*0.017));   // 소형 폰트
+  const fsL=Math.max(14,Math.round(H*0.028));   // 강조 폰트
+  const px=W-pW+pad;
+
+  // 패널 배경
+  c.fillStyle='rgba(9,9,15,.82)';c.fillRect(W-pW,0,pW,H);
+  c.strokeStyle='rgba(255,255,255,.12)';c.lineWidth=1;
+  c.beginPath();c.moveTo(W-pW,0);c.lineTo(W-pW,H);c.stroke();
+
+  let y=pad*2;
+  c.textAlign='left';
+
+  // 로고
+  c.font=`900 ${fs}px -apple-system,sans-serif`;
+  c.fillStyle='#e8e8f2';c.fillText('APL',px,y);
+  c.fillStyle=SPORTS[sport].col;
+  const aw=c.measureText('APL').width;
+  c.fillText(' 3D',px+aw,y);
+  y+=fs+pad;
+
+  // 종목 뱃지
+  c.font=`600 ${fsS}px -apple-system,sans-serif`;
+  c.fillStyle=SPORTS[sport].col;
+  c.fillText(ko?SPORTS[sport].ko:SPORTS[sport].en,px,y);
+  y+=fsS+pad*1.5;
+
+  // 구분선
+  c.fillStyle='rgba(255,255,255,.1)';c.fillRect(px,y,pW-pad*2,1);y+=pad;
+
+  // 회전각
+  c.font=`700 ${fsS}px -apple-system,sans-serif`;
+  c.fillStyle='rgba(255,255,255,.45)';
+  c.fillText(ko?'회전각 3D':'ROTATION 3D',px,y);y+=fsS+pad*0.5;
+
+  const f=v=>(v>=0?'+':'')+v+'°';
+  function row(lbl,val,col){
+    c.font=`${fsS}px -apple-system,sans-serif`;c.fillStyle='rgba(255,255,255,.45)';c.fillText(lbl,px,y);
+    c.font=`800 ${fsL}px -apple-system,sans-serif`;c.fillStyle=col;c.textAlign='right';
+    c.fillText(val,W-pad,y);c.textAlign='left';y+=fsL+pad*0.4;
+  }
+  row(ko?'어깨':'Shoulder',f(lastA.shR||0),'#a855f7');
+  row(ko?'골반':'Hip',f(lastA.hipR||0),'#f97316');
+  const xv=lastA.xf||0;
+  row('X-factor',f(xv),Math.abs(xv)>25?'#22c55e':Math.abs(xv)>10?'#eab308':'rgba(255,255,255,.45)');
+  y+=pad*0.5;
+
+  // 구분선
+  c.fillStyle='rgba(255,255,255,.1)';c.fillRect(px,y,pW-pad*2,1);y+=pad;
+
+  // 속도
+  c.font=`700 ${fsS}px -apple-system,sans-serif`;c.fillStyle='rgba(255,255,255,.45)';
+  c.fillText(ko?'현재 속도':'SPEED',px,y);y+=fsS+pad*0.5;
+
+  TRACK.filter(p=>sel.has(p.id)).forEach(p=>{
+    if(y>H-pad*4)return;
+    const v=cur[p.id]||0;
+    c.font=`${fsS}px -apple-system,sans-serif`;c.fillStyle='rgba(255,255,255,.4)';
+    c.fillText(ko?p.ko:p.en,px,y);
+    c.font=`700 ${fs}px -apple-system,sans-serif`;c.fillStyle=p.col;c.textAlign='right';
+    c.fillText(v.toFixed(2)+' m/s',W-pad,y);c.textAlign='left';
+    y+=fs+pad*0.3;
+  });
+
+  // 관절 각도 (종목 선택 시)
+  const spJ=SPORTS[sport].joints;
+  if(spJ.length&&y<H-pad*8){
+    y+=pad;c.fillStyle='rgba(255,255,255,.1)';c.fillRect(px,y,pW-pad*2,1);y+=pad;
+    c.font=`700 ${fsS}px -apple-system,sans-serif`;c.fillStyle='rgba(255,255,255,.45)';
+    c.fillText(ko?'관절 각도':'JOINTS',px,y);y+=fsS+pad*0.5;
+    spJ.forEach(j=>{
+      if(y>H-pad*3)return;
+      c.font=`${fsS}px -apple-system,sans-serif`;c.fillStyle='rgba(255,255,255,.4)';
+      c.fillText(ko?j.ko:j.en,px,y);
+      c.font=`700 ${fs}px -apple-system,sans-serif`;c.fillStyle=j.col;c.textAlign='right';
+      c.fillText((lastA[j.id]||0)+'°',W-pad,y);c.textAlign='left';
+      y+=fs+pad*0.3;
+    });
+  }
+
+  // 최고 속도 (하단)
+  const peakY=H-pad*2;
+  c.font=`${fsS}px -apple-system,sans-serif`;c.fillStyle='rgba(255,255,255,.3)';
+  const wristPeak=(peak['wrist']||0).toFixed(2);
+  c.fillText((ko?'최고 손목: ':'Peak Wrist: ')+wristPeak+' m/s',px,peakY);
+}
+
+/* ── 녹화 시작/종료 ── */
+function getMimeType(){
+  const cands=['video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/mp4','video/webm;codecs=vp9','video/webm'];
+  return cands.find(t=>{try{return MediaRecorder.isTypeSupported(t);}catch{return false;}})||'';
+}
+
+function startRec(){
+  if(!live){alert(lang==='ko'?'분석을 먼저 시작하세요':'Start analysis first');return;}
+  try{
+    initCompCanvas();
+    const mimeType=getMimeType();
+    const cs=compCvs.captureStream(30);
+    recorder=new MediaRecorder(cs,{...(mimeType?{mimeType}:{}),videoBitsPerSecond:REC_BPS});
+    recChunks=[];
+    recorder.ondataavailable=e=>{if(e.data&&e.data.size>0)recChunks.push(e.data);};
+    recorder.onstop=async()=>{
+      const type=recorder.mimeType||'video/mp4';
+      const blob=new Blob(recChunks,{type});
+      const ext=type.includes('webm')?'webm':'mp4';
+      const fname=`APL_3D_${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.${ext}`;
+      // iOS: Web Share API → 사진 앱 저장
+      if(navigator.share&&navigator.canShare){
+        const file=new File([blob],fname,{type});
+        if(navigator.canShare({files:[file]})){
+          try{await navigator.share({files:[file],title:'APL Motion Analysis 3D'});return;}
+          catch(e){if(e.name==='AbortError')return;}
+        }
+      }
+      // Android / PC: 파일 다운로드
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');a.href=url;a.download=fname;a.click();
+      setTimeout(()=>URL.revokeObjectURL(url),5000);
+    };
+    recorder.start(200);
+    // setInterval(33ms) — 2D 앱과 동일 방식으로 비디오+스켈레톤+패널 녹화
+    _compInterval=setInterval(drawCompFrame,33);
+    isRec=true;
+    $('chip-rec').style.display='';
+    $('btn-rec').textContent='⏹ 중지';
+    $('btn-rec').className='btn btn-rec on';
+  }catch(e){alert('녹화 오류: '+e.message);}
+}
+
+function stopRec(){
+  if(_compInterval){clearInterval(_compInterval);_compInterval=null;}
+  if(recorder&&recorder.state!=='inactive'){
+    recorder.stop();
+    // track 정지는 onstop 안에서 처리 (2D 앱 패턴)
+    try{const cs=recorder.stream;cs&&cs.getTracks().forEach(t=>t.stop());}catch(e){}
+  }
+  isRec=false;
+  $('chip-rec').style.display='none';
+  $('btn-rec').textContent='⏺ 녹화';
+  $('btn-rec').className='btn btn-rec';
+}
+
+/* ── UI 업데이트 ── */
 function update_data_ov(a){
   const f=v=>(v>=0?'+':'')+v+'°';
   $('do-sh').textContent=f(a.shR);
   $('do-hip').textContent=f(a.hipR);
   $('do-xf').textContent=f(a.xf);
   $('do-xf').style.color=Math.abs(a.xf)>25?'var(--green)':Math.abs(a.xf)>10?'var(--yellow)':'var(--txt2)';
-  // 가장 빠른 선택된 부위 속도 표시
   let maxSpd=0,maxId='wrist';
-  TRACK.filter(p=>sel.has(p.id)).forEach(p=>{
-    const v=cur[p.id]||0;if(v>maxSpd){maxSpd=v;maxId=p.id;}
-  });
+  TRACK.filter(p=>sel.has(p.id)).forEach(p=>{const v=cur[p.id]||0;if(v>maxSpd){maxSpd=v;maxId=p.id;}});
   const tp=TRACK.find(p=>p.id===maxId);
   $('do-lbl-spd').textContent=lang==='ko'?(tp?tp.ko:'손목'):(tp?tp.en:'Wrist');
   $('do-spd').textContent=maxSpd.toFixed(2)+' m/s';
   $('do-spd').style.color=tp?tp.col:'var(--blue)';
 }
 
-/* ── 오른쪽 패널 업데이트 ── */
 function update_panel(a){
   const f=v=>(v>=0?'+':'')+v+'°';
-  $('rv-sh').textContent=f(a.shR);
-  $('rv-hip').textContent=f(a.hipR);
+  $('rv-sh').textContent=f(a.shR);$('rv-hip').textContent=f(a.hipR);
   $('rv-xf').textContent=f(a.xf);
   $('rv-xf').style.color=Math.abs(a.xf)>25?'var(--green)':Math.abs(a.xf)>10?'var(--yellow)':'var(--txt2)';
-  $('rv-spine').textContent=a.sp+'°';
-  $('rv-lean').textContent=f(a.fl);
-  SPORTS[sport].joints.forEach(j=>{
-    const el=$('jv-'+j.id);
-    if(el){el.textContent=(a[j.id]||0)+'°';el.style.color=j.col;}
-  });
+  $('rv-spine').textContent=a.sp+'°';$('rv-lean').textContent=f(a.fl);
+  SPORTS[sport].joints.forEach(j=>{const el=$('jv-'+j.id);if(el){el.textContent=(a[j.id]||0)+'°';el.style.color=j.col;}});
   const sp=SPORTS[sport];
   if(sp.checks.length){
     const aw=$('alert-wrap');aw.innerHTML='';
     sp.checks.forEach(c=>{
       const state=c.fn(a);const ko=lang==='ko';
-      const txt=ko?(state==='ok'?c.ko_ok:state==='warn'?c.ko_warn:c.ko_bad)
-                   :(state==='ok'?c.en_ok:state==='warn'?c.en_warn:c.en_bad);
-      const d=document.createElement('div');d.className='rp-alert '+state;d.textContent=txt;
-      aw.appendChild(d);
+      const txt=ko?(state==='ok'?c.ko_ok:state==='warn'?c.ko_warn:c.ko_bad):(state==='ok'?c.en_ok:state==='warn'?c.en_warn:c.en_bad);
+      const d=document.createElement('div');d.className='rp-alert '+state;d.textContent=txt;aw.appendChild(d);
     });
   }
   TRACK.filter(p=>sel.has(p.id)).forEach(p=>{
@@ -748,14 +767,10 @@ function draw_graph(t){
     const h=vH[p.id];if(!h||h.length<2)return;
     const vis=h.filter(e=>e.t>=st);if(vis.length<2)return;
     gX.beginPath();let first=true;
-    vis.forEach(e=>{
-      const x=((e.t-st)/GRAPH_MS)*W,y=H-Math.min(1,e.v/MAX_MS)*H;
-      first?(gX.moveTo(x,y),first=false):gX.lineTo(x,y);
-    });
+    vis.forEach(e=>{const x=((e.t-st)/GRAPH_MS)*W,y=H-Math.min(1,e.v/MAX_MS)*H;first?(gX.moveTo(x,y),first=false):gX.lineTo(x,y);});
     gX.strokeStyle=p.col+'bb';gX.lineWidth=1.8;gX.stroke();
   });
-  gX.fillStyle='rgba(255,255,255,.22)';
-  gX.font='9px -apple-system,sans-serif';gX.textAlign='right';
+  gX.fillStyle='rgba(255,255,255,.22)';gX.font='9px -apple-system,sans-serif';gX.textAlign='right';
   gX.fillText(MAX_MS+'m/s',W-2,10);gX.fillText('0',W-2,H-2);
 }
 
@@ -767,18 +782,14 @@ function buildPts(){
     const cb=document.createElement('input');cb.type='checkbox';cb.checked=sel.has(p.id);
     cb.onchange=e=>{e.target.checked?sel.add(p.id):sel.delete(p.id);buildRows();};
     const dot=document.createElement('div');dot.className='pt-dot';dot.style.background=p.col;
-    const sp2=document.createElement('span');sp2.className='pt-lbl';
-    sp2.textContent=lang==='ko'?p.ko:p.en;
+    const sp2=document.createElement('span');sp2.className='pt-lbl';sp2.textContent=lang==='ko'?p.ko:p.en;
     lbl.append(cb,dot,sp2);w.appendChild(lbl);
   });
 }
-
 function buildJoints(){
-  const sp=SPORTS[sport];
-  const sec=$('joint-sec');
+  const sp=SPORTS[sport];const sec=$('joint-sec');
   if(!sp.joints.length){sec.style.display='none';return;}
-  sec.style.display='';
-  $('alert-sec').style.display=sp.checks.length?'':'none';
+  sec.style.display='';$('alert-sec').style.display=sp.checks.length?'':'none';
   const w=$('joint-wrap');w.innerHTML='';
   sp.joints.forEach(j=>{
     const row=document.createElement('div');row.className='rp-row';
@@ -786,7 +797,6 @@ function buildJoints(){
     w.appendChild(row);
   });
 }
-
 function buildRows(){
   const sr=$('spd-rows'),mr=$('max-rows'),lg=$('graph-legend');
   sr.innerHTML='';mr.innerHTML='';lg.innerHTML='';
@@ -795,103 +805,40 @@ function buildRows(){
     const row=document.createElement('div');row.className='rp-row';
     row.innerHTML=`<span class="rp-lbl">${lbl}</span><span class="rp-val" id="sv-${p.id}" style="color:${p.col}">--</span>`;
     const bar=document.createElement('div');bar.className='spd-bar';
-    const fill=document.createElement('div');fill.className='spd-fill';
-    fill.id='sf-'+p.id;fill.style.background=p.col;fill.style.width='0%';
+    const fill=document.createElement('div');fill.className='spd-fill';fill.id='sf-'+p.id;fill.style.background=p.col;fill.style.width='0%';
     bar.appendChild(fill);row.appendChild(bar);sr.appendChild(row);
     const mr2=document.createElement('div');mr2.className='rp-row';
     mr2.innerHTML=`<span class="rp-lbl" style="color:${p.col}">${lbl}</span><span class="rp-val" id="mv-${p.id}" style="color:${p.col}">--</span>`;
     mr.appendChild(mr2);
     const gl=document.createElement('div');gl.className='g-leg';
-    gl.innerHTML=`<div class="g-dot" style="background:${p.col}"></div>${lbl}`;
-    lg.appendChild(gl);
+    gl.innerHTML=`<div class="g-dot" style="background:${p.col}"></div>${lbl}`;lg.appendChild(gl);
   });
 }
 
-/* ── 언어 적용 ── */
+/* ── 언어 ── */
 function lang_apply(){
   const ko=lang==='ko';
   $('btn-lang').textContent=ko?'KO':'EN';
   $('btn-cam').textContent='📷'+(ko?' 카메라':' Cam');
   $('btn-file').textContent='📁'+(ko?' 파일':' File');
   if(!live)$('btn-main').textContent=ko?'▶ 시작':'▶ Start';
-  $('do-lbl-sh').textContent=ko?'어깨':'Sh';
-  $('do-lbl-hip').textContent=ko?'골반':'Hip';
+  $('do-lbl-sh').textContent=ko?'어깨':'Sh';$('do-lbl-hip').textContent=ko?'골반':'Hip';
   $('rp-t-rot').textContent=ko?'회전각 3D':'Rotation 3D';
-  $('rp-sh').textContent=ko?'어깨':'Shoulder';
-  $('rp-hip').textContent=ko?'골반':'Hip';
+  $('rp-sh').textContent=ko?'어깨':'Shoulder';$('rp-hip').textContent=ko?'골반':'Hip';
   $('rp-t-pos').textContent=ko?'자세 3D':'Posture 3D';
-  $('rp-spine').textContent=ko?'척추':'Spine';
-  $('rp-lean').textContent=ko?'전방':'Fwd';
+  $('rp-spine').textContent=ko?'척추':'Spine';$('rp-lean').textContent=ko?'전방':'Fwd';
   $('rp-t-joint').textContent=ko?'관절 각도':'Joint Angles';
-  $('rp-t-spd').textContent=ko?'현재 속도':'Speed';
-  $('rp-t-max').textContent=ko?'최고 속도':'Peak';
-  $('rp-t-pts').textContent=ko?'추적 포인트':'Track Points';
-  $('rp-t-alert').textContent=ko?'분석 피드백':'Feedback';
+  $('rp-t-spd').textContent=ko?'현재 속도':'Speed';$('rp-t-max').textContent=ko?'최고 속도':'Peak';
+  $('rp-t-pts').textContent=ko?'추적 포인트':'Track Points';$('rp-t-alert').textContent=ko?'분석 피드백':'Feedback';
   $('no-det').textContent=ko?'📷 전신이 보이도록 서 주세요':'📷 Stand so full body is visible';
   $('graph-lbl').textContent=ko?'속도 (최근 5초)':'Speed (5s)';
-  const icons={'GEN':'⚡','SPL':'❄️','GPL':'⛳','BPL':'⚾','TPL':'🎾'};
-  const names={GEN:{ko:'일반',en:'General'},SPL:{ko:'SPL',en:'SPL'},GPL:{ko:'GPL',en:'GPL'},BPL:{ko:'BPL',en:'BPL'},TPL:{ko:'TPL',en:'TPL'}};
-  document.querySelectorAll('.sp-btn').forEach(b=>{
-    const s=b.dataset.s;b.textContent=icons[s]+' '+(ko?names[s].ko:names[s].en);
-  });
+  const ICONS={'GEN':'⚡','SPL':'❄️','GPL':'⛳','BPL':'⚾','TPL':'🎾'};
+  const NAMES={GEN:{ko:'일반',en:'General'},SPL:{ko:'SPL',en:'SPL'},GPL:{ko:'GPL',en:'GPL'},BPL:{ko:'BPL',en:'BPL'},TPL:{ko:'TPL',en:'TPL'}};
+  document.querySelectorAll('.sp-btn').forEach(b=>{const s=b.dataset.s;b.textContent=ICONS[s]+' '+(ko?NAMES[s].ko:NAMES[s].en);});
   buildPts();buildRows();buildJoints();
 }
 
-/* ── 녹화: iOS Web Share API → 사진 앱 저장 / Android → 다운로드 ── */
-function getMimeType(){
-  const candidates=['video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/mp4','video/webm;codecs=vp9','video/webm'];
-  return candidates.find(t=>{try{return MediaRecorder.isTypeSupported(t);}catch{return false;}})||'';
-}
-
-function startRec(){
-  if(!live){alert(lang==='ko'?'분석을 먼저 시작하세요':'Start analysis first');return;}
-  try{
-    const mimeType=getMimeType();
-    const cs=cvs.captureStream(30);
-    recorder=new MediaRecorder(cs,mimeType?{mimeType}:{});
-    recChunks=[];
-    recorder.ondataavailable=e=>{if(e.data&&e.data.size>0)recChunks.push(e.data);};
-    recorder.onstop=async()=>{
-      const type=recorder.mimeType||'video/mp4';
-      const blob=new Blob(recChunks,{type});
-      const ext=type.includes('webm')?'webm':'mp4';
-      const filename=`APL_3D_${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.${ext}`;
-      // iOS: Web Share API → 사진 앱에 저장 가능
-      if(navigator.share&&navigator.canShare){
-        const file=new File([blob],filename,{type});
-        if(navigator.canShare({files:[file]})){
-          try{await navigator.share({files:[file],title:'APL Motion Analysis 3D'});return;}
-          catch(e){if(e.name==='AbortError')return;/* 공유 취소, 다운로드로 대체 */}
-        }
-      }
-      // Android / PC: 직접 다운로드
-      const url=URL.createObjectURL(blob);
-      const a=document.createElement('a');
-      a.href=url;a.download=filename;a.click();
-      setTimeout(()=>URL.revokeObjectURL(url),5000);
-    };
-    recorder.start(200);
-    isRec=true;
-    $('chip-rec').style.display='';
-    $('btn-rec').textContent='⏹';
-    $('btn-rec').className='btn btn-rec on';
-  }catch(e){alert('녹화 오류: '+e.message);}
-}
-
-function stopRec(){
-  if(recorder&&recorder.state!=='inactive')recorder.stop();
-  isRec=false;
-  $('chip-rec').style.display='none';
-  $('btn-rec').textContent='⏺';
-  $('btn-rec').className='btn btn-rec';
-}
-
-/* ── 리사이즈 ── */
-function resize(){
-  const w=$('vid-wrap');
-  cvs.width=w.offsetWidth;cvs.height=w.offsetHeight;
-}
-
+function resize(){const w=$('vid-wrap');cvs.width=w.offsetWidth;cvs.height=w.offsetHeight;}
 init();
 </script>
 </body>
