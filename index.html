@@ -171,7 +171,7 @@ header{display:flex;align-items:center;justify-content:space-between;
 <header>
   <div>
     <span class="h-logo">APL Motion Coach <span class="accent">3D</span></span>
-    <span class="h-ver">v25</span>
+    <span class="h-ver">v29</span>
   </div>
   <div class="h-right">
     <button id="prm-badge" class="free">FREE</button>
@@ -392,7 +392,6 @@ let jumpTakeoffT=0,jumpTakeoffHipY=0;
 let _hipRef=0;           // GROUND hip Y EMA (CoM 기준점)
 let refLegNorm=0.35;    // 이륙 전 발목-고관절 거리 고정값 (스케일 안정화)
 let slowMoFactor=1.0;   // 슬로모션 배율: 1=일반, 4=120fps슬로, 8=240fps슬로
-let currentJumpPeakH=0; // 진행 중인 점프 내부 최고점 (완료 후 조건부 peakJumpH 반영)
 // ── 녹화 ──────────────────────────────────
 let recorder=null,recChunks=[],isRec=false,_compInterval=null;
 let _pendingSaveBlob=null,_pendingSaveName='';
@@ -451,7 +450,7 @@ function events(){
   $('spd-sel').onchange=()=>{if(vid.src||vid.srcObject)vid.playbackRate=+$('spd-sel').value;};
   $('slomo-sel').onchange=()=>{slowMoFactor=+$('slomo-sel').value;};
   $('btn-lang').onclick=()=>{lang=lang==='ko'?'en':'ko';lang_apply();};
-  $('btn-reset').onclick=()=>{peakAngVel={sh:0,hip:0};peakJumpH=0;currentJumpPeakH=0;};
+  $('btn-reset').onclick=()=>{peakAngVel={sh:0,hip:0};peakJumpH=0;};
   // 신장 설정
   $('btn-height').onclick=()=>{
     const ko=lang==='ko';
@@ -632,7 +631,7 @@ async function start_ana(){
   wH=[];vH={};cur={};lastA={};lastLm=null;lastWlm=null;lastFrameT=0;
   angVel={sh:0,hip:0};angVelH={sh:[],hip:[]};_prevA=null;_prevAt=0;
   jumpRef=null;jumpH=0;peakJumpH=0;jumpState='GROUND';
-  jumpTakeoffT=0;jumpTakeoffHipY=0;_hipRef=0;refLegNorm=0.35;currentJumpPeakH=0;
+  jumpTakeoffT=0;jumpTakeoffHipY=0;_hipRef=0;refLegNorm=0.35;
   fN=0;fT=performance.now();
   $('btn-main').textContent=lang==='ko'?'■ 중지':'■ Stop';
   $('btn-main').className='btn btn-main stop';
@@ -736,18 +735,16 @@ function angles3d(w){
 }
 
 /* ── 회전 각속도 (°/s) ── */
-/* ── 점프 높이 ── [V27] 걷기·달리기 false positive 방지
-   1. ankleGnd = max(la.y, ra.y): 두 발 중 낮은 쪽(지면 발)으로 이륙/착지 판정
-      → 걷기 중 한 발만 들릴 때 false AIRBORNE 완전 차단
-   2. peakJumpH: 체공 300ms 이상 완료된 점프만 집계
-      → 달리기 스텝(보통 150-250ms) 자동 필터
-   3. currentJumpPeakH: 진행 중인 점프 내부 최고점 별도 추적 */
+/* ── 점프 높이 ── [V29] 단순화 — 모든 체공 실시간 표시
+   현재값(jumpH): 발이 떨어지는 모든 상황 실시간 측정 (달리기 포함, 필터 없음)
+   최고값(peakJumpH): 현재까지 측정된 최대값 (↺로 초기화)
+   hip 기반 directH만 사용 — timeH·300ms필터·currentJumpPeakH 모두 제거 */
 function detectJump(wlm,t){
   if(!t)t=lastFrameT||performance.now();
   const la=wlm[27],ra=wlm[28];
   const hasL=la&&(la.visibility||0)>0.3;
   const hasR=ra&&(ra.visibility||0)>0.3;
-  // 이륙/착지/기준: 두 발 중 낮은 쪽(max Y) → 한 발만 들릴 때 오작동 방지
+  // 두 발 중 낮은 쪽(max Y): 한 발만 들릴 때 false 이륙 방지
   const ankleGnd=hasL&&hasR?Math.max(la.y,ra.y):hasL?la.y:hasR?ra.y:(wlm[25].y+wlm[26].y)/2;
   const hipY=(wlm[23].y+wlm[24].y)/2;
 
@@ -756,50 +753,36 @@ function detectJump(wlm,t){
     refLegNorm=Math.max(0.25,ankleGnd-hipY);
     return;
   }
-  const pr=src==='camera'?1.0:(+($('spd-sel').value)||1.0);
-  const slowMo=src==='camera'?1.0:slowMoFactor;
-  const realPr=pr/slowMo;
 
   switch(jumpState){
     case'GROUND':{
-      jumpRef=jumpRef*0.985+ankleGnd*0.015;
-      _hipRef=_hipRef*0.985+hipY*0.015;
+      jumpRef=jumpRef*0.97+ankleGnd*0.03;
+      _hipRef=_hipRef*0.97+hipY*0.03;
       jumpH=0;
       const lg=ankleGnd-hipY;
       if(lg>0.20)refLegNorm=refLegNorm*0.97+lg*0.03;
-      // 이륙: 두 발 모두 지면 3% 이상 위 (max ankle 기준 → 진짜 이륙만 감지)
+      // 이륙: 두 발 모두 3% 이상 위 (달리기 포함 모든 체공 감지)
       if(ankleGnd<jumpRef-0.030){
-        jumpTakeoffT=t;jumpTakeoffHipY=_hipRef;
-        currentJumpPeakH=0;jumpState='AIRBORNE';
+        jumpTakeoffT=t;jumpTakeoffHipY=_hipRef;jumpState='AIRBORNE';
       }
       break;
     }
     case'AIRBORNE':{
       const airMs=t-jumpTakeoffT;
-      const effMs=airMs*realPr;
-      const tSec=effMs/1000;
       const legLen=(userHeight/100)*0.53;
       const mPerNorm=legLen/Math.max(0.25,refLegNorm);
-      const directH=Math.max(0,Math.round((jumpTakeoffHipY-hipY)*mPerNorm*100));
-      const timeH=Math.min(120,Math.round(9.81*(tSec/2)*(tSec/2)/2*100));
-      jumpH=Math.min(120,Math.max(directH,Math.min(timeH,directH+20)));
-      // 현재 점프 내 최고점 추적 (peakJumpH는 완료 후 조건부 갱신)
-      if(jumpH>currentJumpPeakH)currentJumpPeakH=jumpH;
-      // 착지: 낮은 발목 5% 이내 복귀 + 150ms 이상 체공
-      if(ankleGnd>=jumpRef-0.05&&effMs>=150){
-        // 300ms 이상 체공만 유효 점프로 집계 (달리기 스텝 150-250ms 걸러냄)
-        if(effMs>=300)peakJumpH=Math.max(peakJumpH,currentJumpPeakH);
-        jumpState='LAND';jumpH=0;currentJumpPeakH=0;
-      }
-      if(airMs>2500)jumpState='GROUND';
+      // hip 기반 위치 측정만 사용 (CoM 근사, 단순·직관적)
+      jumpH=Math.min(120,Math.max(0,Math.round((jumpTakeoffHipY-hipY)*mPerNorm*100)));
+      if(jumpH>peakJumpH)peakJumpH=jumpH; // 최고값: 현재값 최대 실시간 갱신
+      if(ankleGnd>=jumpRef-0.07&&airMs>=150){jumpState='LAND';jumpH=0;}
+      if(airMs>2500){jumpRef=ankleGnd;_hipRef=hipY;jumpState='GROUND';}
       break;
     }
     case'LAND':{
       jumpH=0;
-      if(ankleGnd>=jumpRef-0.06){
-        jumpRef=jumpRef*0.88+ankleGnd*0.12;
-        jumpState='GROUND';
-      }
+      jumpRef=jumpRef*0.7+ankleGnd*0.3;
+      _hipRef=_hipRef*0.7+hipY*0.3;
+      jumpState='GROUND';
       break;
     }
   }
