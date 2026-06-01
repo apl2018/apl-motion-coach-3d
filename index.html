@@ -171,7 +171,7 @@ header{display:flex;align-items:center;justify-content:space-between;
 <header>
   <div>
     <span class="h-logo">APL Motion Coach <span class="accent">3D</span></span>
-    <span class="h-ver">v21</span>
+    <span class="h-ver">v22</span>
   </div>
   <div class="h-right">
     <button id="prm-badge" class="free">FREE</button>
@@ -896,13 +896,11 @@ function drawCompFrame(){
     compCtx.drawImage(vid,dx,dy,dw,dh);
     compCtx.globalAlpha=1;
   }
-  // ② B 위에(screen blend: A 밝기 유지)
+  // ② B 위에(A가 진하게: source-over 50% — A 100% 베이스 유지)
   if(compareMode&&vid2Loaded&&vid2.readyState>=2){
-    compCtx.globalCompositeOperation='screen';
-    compCtx.globalAlpha=0.60;
+    compCtx.globalAlpha=0.50;
     compCtx.drawImage(vid2,dx,dy,dw,dh);
     compCtx.globalAlpha=1;
-    compCtx.globalCompositeOperation='source-over';
   }
   // 스켈레톤 (전체 영상 위에)
   if(lastLm&&lastWlm){draw_sk_on(compCtx,vr,lastLm,lastWlm,true,s);draw_arr_on(compCtx,vr,lastLm,lastWlm);}
@@ -921,7 +919,7 @@ function draw_comp_panel(c,W,H,s){
   const rH=fsS+fsL+Math.round(pad*0.6);  // 스택 행 높이
   const divH=Math.round(pad*0.7);
   const r=Math.round(W*0.009);            // 모서리 반경
-  const boxW=Math.round(W*0.14);          // 박스 폭
+  const boxW=Math.round(W*0.105);         // 박스 폭 (기존 0.14의 3/4)
 
   // ── 콘텐츠 행 목록 수집 ──
   const f=v=>(v>=0?'+':'')+v+'°';
@@ -934,7 +932,7 @@ function draw_comp_panel(c,W,H,s){
   items.push({lbl:ko?'어깨':'Sh',val:f(lastA.shR||0),col:'#a855f7'});
   items.push({lbl:ko?'골반':'Hip',val:f(lastA.hipR||0),col:'#f97316'});
   const xv=lastA.xf||0;
-  items.push({lbl:'X',val:f(xv),col:Math.abs(xv)>25?'#22c55e':Math.abs(xv)>10?'#eab308':'rgba(255,255,255,.5)'});
+  items.push({lbl:'X-factor',val:f(xv),col:Math.abs(xv)>25?'#22c55e':Math.abs(xv)>10?'#eab308':'rgba(255,255,255,.5)'});
   items.push(null);
   items.push({lbl:ko?'척추':'Spine',val:(lastA.sp||0)+'°',col:'#06b6d4'});
   items.push({lbl:ko?'전방':'Fwd',val:f(lastA.fl||0),col:'rgba(255,255,255,.7)'});
@@ -1078,10 +1076,9 @@ function buildPts(){
 function buildJoints(){
   const sp=SPORTS[sport];const sec=$('joint-sec');
   const jumpSec=$('jump-sec');
-  // 점프 높이: SPL에서만 표시 (프리미엄 기능)
-  const showJump=(sport==='SPL');
-  if(jumpSec)jumpSec.style.display=showJump?'':'none';
-  if(showJump&&jumpSec){
+  // 점프 높이: GEN·SPL 모두 표시 (감지는 SPL에서만 동작)
+  if(jumpSec){
+    jumpSec.style.display='block'; // 항상 명시적으로 표시
     const ko=lang==='ko';
     $('rp-t-jump').textContent=ko?'점프 높이':'Jump Height';
     $('rp-jump').textContent=ko?'현재':'Current';
