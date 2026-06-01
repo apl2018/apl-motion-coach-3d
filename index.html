@@ -336,17 +336,6 @@ function events(){
   $('btn-lang').onclick=()=>{lang=lang==='ko'?'en':'ko';lang_apply();};
   $('btn-reset').onclick=()=>{peakAngVel={sh:0,hip:0};};
 
-  // ── 일시정지 버튼 ──
-  $('btn-pause').onclick=()=>{
-    if(!live)return;
-    isPaused=!isPaused;
-    if(src==='file'){isPaused?vid.pause():vid.play().catch(()=>{});}
-    $('btn-pause').className='btn btn-pause'+(isPaused?' on':'');
-    $('pause-overlay').className='pause-overlay'+(isPaused?' on':'');
-    $('chip-pause').style.display=isPaused?'':'none';
-    lang_apply();
-  };
-
   // ── 기준 자세 버튼 ──
   // 사용법: ⏸로 멈추거나, 원하는 순간에 누르면 그 프레임 골격이 초록 고정 오버레이로 남음
   $('btn-ghost').onclick=()=>{
@@ -449,9 +438,7 @@ async function start_ana(){
   $('btn-main').textContent=lang==='ko'?'■ 중지':'■ Stop';
   $('btn-main').className='btn btn-main stop';
   $('no-det').classList.remove('on');
-  $('btn-pause').className='btn btn-pause';
   $('pause-overlay').className='pause-overlay';
-  $('chip-pause').style.display='none';
   loop();
 }
 function stop_ana(){
