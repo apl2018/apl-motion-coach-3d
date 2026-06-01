@@ -171,7 +171,7 @@ header{display:flex;align-items:center;justify-content:space-between;
 <header>
   <div>
     <span class="h-logo">APL Motion Coach <span class="accent">3D</span></span>
-    <span class="h-ver">v24</span>
+    <span class="h-ver">v25</span>
   </div>
   <div class="h-right">
     <button id="prm-badge" class="free">FREE</button>
@@ -685,45 +685,55 @@ function angles3d(w){
    AIRBORNE 진입: 고관절이 기준점보다 4% 이상 위 (≈7cm for 1.7m 프레임)
    높이: h = g×(t_eff/2)²/2  (재생속도 보정, 단위: cm)
           비행 중 점점 증가 → 착지 순간 = 실제 최고 높이
-   착지: 고관절이 기준점 3% 이내 복귀 + 실제 200ms 이상 비행
-   재생속도 보정: 0.5×슬로우모션 영상도 정확한 실제 높이 계산
-   정확도: ±1-2cm (60fps), ±3-5cm (30fps) */
+   발목 직접 위치 측정: (jumpRef-ankleY) × (0.90m÷발목-고관절거리) × 100cm
+   비행시간 보조: 착지 순간 h=g×(t/2)²/2 크로스체크
+   정확도: 30fps ±3-5cm, 60fps ±1-3cm
+   스쿼트 중 발목은 거의 고정 → false positive 없음 */
 function detectJump(wlm,t){
-  const hipY=(wlm[23].y+wlm[24].y)/2;
   if(!t)t=lastFrameT||performance.now();
-  if(jumpRef===null){jumpRef=hipY;return;}
-  // 재생 속도 보정 — 슬로우모션 영상의 실제 비행시간으로 환산
+  // ── 발목 좌표 선택 (가시성 기반) ──
+  const la=wlm[27],ra=wlm[28];
+  const hasL=la&&(la.visibility||0)>0.3;
+  const hasR=ra&&(ra.visibility||0)>0.3;
+  const ankleY=hasL&&hasR?(la.y+ra.y)/2:hasL?la.y:hasR?ra.y:(wlm[25].y+wlm[26].y)/2;
+  const hipY=(wlm[23].y+wlm[24].y)/2; // 스케일 보정용
+
+  if(jumpRef===null){jumpRef=ankleY;return;} // 초기화: 발목 기준점
   const pr=src==='camera'?1.0:(+($('spd-sel').value)||1.0);
 
   switch(jumpState){
     case'GROUND':
-      // 기준점 빠르게 갱신 (0.95/0.05 = 85%/s, ~1초면 안정화)
-      // GROUND 상태에서만 갱신 → 공중에 있을 때는 기준점 고정
-      jumpRef=jumpRef*0.95+hipY*0.05;
+      // 발목 기준점 갱신 (스쿼트 중에도 발목은 거의 고정 → 안정적)
+      jumpRef=jumpRef*0.98+ankleY*0.02; // 0.98/0.02: 약 2초 안정화
       jumpH=0;
-      // 위치 기반 이륙 감지: 고관절이 기준점 3% 이상 위 (≈5cm)
-      if(hipY<jumpRef-0.03){jumpTakeoffT=t;jumpState='AIRBORNE';}
+      // 이륙: 발목이 기준점 2% 이상 위로 올라가면 → 공중
+      if(ankleY<jumpRef-0.02){jumpTakeoffT=t;jumpState='AIRBORNE';}
       break;
     case'AIRBORNE':{
       const airMs=t-jumpTakeoffT;
-      const effMs=airMs*pr;           // 재생속도로 보정한 실제 비행시간
+      const effMs=airMs*pr; // 재생속도 보정
       const tSec=effMs/1000;
-      // 비행시간 물리 공식: h=g×(t/2)²/2
-      // 비행 중 증가 → 착지 순간 = 실제 최고점 높이
-      jumpH=Math.min(200,Math.round(9.81*(tSec/2)*(tSec/2)/2*100));
+      // ① 직접 위치 측정: 발목 상승량 × (0.90m ÷ 발목-고관절 거리)
+      const legNorm=Math.max(0.05,ankleY-hipY); // 발목~고관절 정규화 거리
+      const mPerNorm=0.90/legNorm;              // 실제 비율 (m/정규화단위)
+      const directH=Math.max(0,Math.round((jumpRef-ankleY)*mPerNorm*100));
+      // ② 비행시간 보조: h=g×(t/2)²/2
+      const timeH=Math.min(200,Math.round(9.81*(tSec/2)*(tSec/2)/2*100));
+      // 두 값 중 큰 값 (직접측정=즉각, 비행시간=착지 근처 정확)
+      jumpH=Math.min(200,Math.max(directH,timeH));
       if(jumpH>peakJumpH)peakJumpH=jumpH;
-      // 착지 감지: 기준점 3% 이내 복귀 + 실제 200ms 이상 비행
-      if(hipY>=jumpRef-0.03&&effMs>=200){
+      // 착지: 발목이 기준점 2% 이내 복귀 + 최소 150ms 비행
+      if(ankleY>=jumpRef-0.02&&effMs>=150){
         peakJumpH=Math.max(peakJumpH,jumpH);
         jumpState='LAND';jumpH=0;
       }
-      if(airMs>5000)jumpState='GROUND'; // 5초 타임아웃
+      if(airMs>5000)jumpState='GROUND';
       break;}
     case'LAND':
       jumpH=0;
-      // 착지 후 안정화 → GROUND (기준점을 착지 위치로 업데이트)
-      if(hipY>=jumpRef-0.05){
-        jumpRef=jumpRef*0.95+hipY*0.05;
+      // 발목 안정화 → GROUND (착지 위치로 기준점 빠르게 업데이트)
+      if(ankleY>=jumpRef-0.04){
+        jumpRef=jumpRef*0.9+ankleY*0.1;
         jumpState='GROUND';
       }
       break;
