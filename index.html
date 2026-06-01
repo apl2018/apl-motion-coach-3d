@@ -136,15 +136,15 @@ header{display:flex;align-items:center;justify-content:space-between;
 .btn-cmp{background:rgba(34,197,94,.15);color:var(--green);border:1px solid rgba(34,197,94,.3);font-size:10px;height:30px;padding:0 8px;white-space:nowrap;border-radius:8px;cursor:pointer;flex-shrink:0}
 .btn-cmp.on{background:var(--green);color:#fff}
 .btn-cmp:active{opacity:.6}
-/* 비교 모드: A(vid)=분석 영상(진하게 100%), B(vid2)=비교 ghost(흐리게, A 위 오버레이)
-   z-order: vid(1) < vid2(2) < canvas(3)
-   — A가 도드라지게: A 100%, B ghost 60% */
-#vid2{position:absolute;width:100%;height:100%;object-fit:contain;opacity:0;display:none;pointer-events:none;z-index:2}
-#vid2.cmp-on{display:block;opacity:0.60}   /* B: 흐리게(비교 ghost, A 위 오버레이) */
-#vid{z-index:1}
+/* 비교 모드: A(vid)=분석 영상(90% 진하게, 위), B(vid2)=베이스 ghost(100%, 아래)
+   z-order: vid2(1) < vid(2) < canvas(3)
+   — A가 B 위에 올라가 90% 불투명 → B가 A 뒤에서 10% 비침 */
+#vid2{position:absolute;width:100%;height:100%;object-fit:contain;opacity:0;display:none;pointer-events:none;z-index:1}
+#vid2.cmp-on{display:block;opacity:1.0}   /* B: 100% 베이스 (A 뒤에서 ghost) */
+#vid{z-index:2}
 #cvs{z-index:3}
-/* A: 비교모드에서도 100% 불투명 */
-#vid-wrap.cmp-on #vid.show{opacity:1.0}
+/* A: 비교모드에서 90% — 훨씬 진하게, B가 10%만 비침 */
+#vid-wrap.cmp-on #vid.show{opacity:0.90}
 @media(max-width:380px){#right-panel{width:64px}.btn{font-size:10px}.btn-main{padding:0 12px}}
 /* ── 프리미엄 배지 & 모달 ── */
 #prm-badge{font-size:10px;font-weight:800;padding:3px 8px;border-radius:10px;cursor:pointer;border:none;min-height:28px}
@@ -171,7 +171,7 @@ header{display:flex;align-items:center;justify-content:space-between;
 <header>
   <div>
     <span class="h-logo">APL Motion Coach <span class="accent">3D</span></span>
-    <span class="h-ver">v9</span>
+    <span class="h-ver">v15</span>
   </div>
   <div class="h-right">
     <button id="prm-badge" class="free">FREE</button>
@@ -591,11 +591,15 @@ function stop_ana(){
   vid.classList.remove('show');
   $('btn-main').textContent=lang==='ko'?'▶ 시작':'▶ Start';
   $('btn-main').className='btn btn-main';
-  $('no-det').classList.add('on');
+  $('no-det').classList.remove('on');
   $('pause-overlay').className='pause-overlay';
   ctx.clearRect(0,0,cvs.width,cvs.height);
   // 파일 모드면 시크 바 다시 표시
-  if(src==='file')showSeekWrap(true);
+  if(src==='file'){
+    showSeekWrap(true);
+    // 비교 모드: 종료 후에도 A·B 영상 모두 표시 → 슬라이더로 재분석 시작점 조정 가능
+    if(compareMode&&vid2Loaded) vid.classList.add('show');
+  }
 }
 
 /* ── 메인 루프 ── */
@@ -900,16 +904,16 @@ function drawCompFrame(){
     else{dw=compH*vAr;dx=(compW-dw)/2;}
     vr={x:dx,y:dy,w:dw,h:dh};
   }
-  // ① A 먼저(분석 영상, 진하게 100%)
-  if(vid.readyState>=2){
+  // ① B 먼저(베이스 ghost, 100%)
+  if(compareMode&&vid2Loaded&&vid2.readyState>=2){
     compCtx.globalAlpha=1.0;
-    compCtx.drawImage(vid,dx,dy,dw,dh);
+    compCtx.drawImage(vid2,dx,dy,dw,dh);
     compCtx.globalAlpha=1;
   }
-  // ② B 위에(비교 ghost, 흐리게 60%)
-  if(compareMode&&vid2Loaded&&vid2.readyState>=2){
-    compCtx.globalAlpha=0.60;
-    compCtx.drawImage(vid2,dx,dy,dw,dh);
+  // ② A 위에(분석 영상, 90% 진하게)
+  if(vid.readyState>=2){
+    compCtx.globalAlpha=compareMode?0.90:1.0;
+    compCtx.drawImage(vid,dx,dy,dw,dh);
     compCtx.globalAlpha=1;
   }
   // 스켈레톤 (전체 영상 위에)
@@ -1024,7 +1028,9 @@ function startRec(){
 }
 function stopRec(){
   if(_compInterval){clearInterval(_compInterval);_compInterval=null;}
-  recChunks=[];
+  // recChunks는 여기서 초기화하지 않음!
+  // recorder.stop() 전에 지우면 누적 청크 전부 손실 → 마지막 200ms 조각만 blob됨
+  // recChunks 초기화는 startRec()에서만 수행
   if(recorder&&recorder.state!=='inactive')recorder.stop();
   isRec=false;$('chip-rec').style.display='none';
   $('btn-rec').textContent=lang==='ko'?'⏺ 녹화':'⏺ Rec';$('btn-rec').className='btn btn-rec';
