@@ -171,7 +171,7 @@ header{display:flex;align-items:center;justify-content:space-between;
 <header>
   <div>
     <span class="h-logo">APL Motion Coach <span class="accent">3D</span></span>
-    <span class="h-ver">v17</span>
+    <span class="h-ver">v18</span>
   </div>
   <div class="h-right">
     <button id="prm-badge" class="free">FREE</button>
@@ -910,7 +910,7 @@ function drawCompFrame(){
     compCtx.drawImage(vid,dx,dy,dw,dh);
     compCtx.globalAlpha=1;
   }
-  // ② B 위에(비교 ghost, 50% 오버레이)
+  // ② B 위에(비교 ghost, 35% 오버레이)
   if(compareMode&&vid2Loaded&&vid2.readyState>=2){
     compCtx.globalAlpha=0.50;
     compCtx.drawImage(vid2,dx,dy,dw,dh);
@@ -923,66 +923,79 @@ function drawCompFrame(){
 }
 
 
-/* ── 녹화 데이터 패널 ── 영상 우측에 반투명 오버레이 ──
-   분석 화면 패널과 동일한 글자 크기, 수직 중앙 정렬 */
+/* ── 녹화 데이터 패널 ── 영상 우측 12% 반투명 오버레이 ──
+   레이아웃: 레이블(위) + 값(아래) 세로 쌓기 방식 */
 function draw_comp_panel(c,W,H,s){
   const ko=lang==='ko';
-  // 폰에서 앱 패널(rp-lbl:9px, rp-val:10px)과 유사하게 보이도록 크게 설정
-  // 1280px 녹화→390px 폰 축소율 ~0.305 → 목표 9px = canvas 약 29px = W*0.023
-  const panW=Math.round(W*0.16); // 우측 16%
-  const pad=Math.round(W*0.008);
+  const panW=Math.round(W*0.12);          // 우측 12% (슬림)
+  const pad=Math.round(W*0.007);
   const px=W-panW+pad;
-  const fsS=Math.round(W*0.022);  // 레이블 — 앱 패널 9px에 대응
-  const fsL=Math.round(W*0.025);  // 값    — 앱 패널 10px에 대응
-  const rowH=Math.round(fsL*1.8); // 행 높이
+  const fsS=Math.round(W*0.016);          // 레이블 폰트
+  const fsL=Math.round(W*0.021);          // 값 폰트
+  const rH=fsS+fsL+Math.round(pad*0.7);  // 스택 행 높이 (레이블+값)
 
-  // 전체 콘텐츠 높이 계산 → 수직 중앙 배치
-  const spJ=SPORTS[sport].joints;
-  const jumpRows=(sport==='SPL')?2:0; // 점프 높이 2행 (SPL 전용)
-  const nRows=3+2+2+spJ.length+jumpRows; // 회전(3)+자세(2)+속도(2)+관절+점프
-  const totalH=nRows*rowH+pad*7;
-  let y=Math.max(pad*2,(H-totalH)/2);
-
-  // 반투명 패널 배경
-  c.fillStyle='rgba(9,9,15,.82)';c.fillRect(W-panW,0,panW,H);
+  // 패널 배경
+  c.fillStyle='rgba(9,9,15,.88)';c.fillRect(W-panW,0,panW,H);
   c.strokeStyle='rgba(255,255,255,.12)';c.lineWidth=1;
   c.beginPath();c.moveTo(W-panW,0);c.lineTo(W-panW,H);c.stroke();
   c.textAlign='left';
 
-  // APL 로고
-  c.font=`900 ${fsL}px -apple-system,sans-serif`;c.fillStyle='#e8e8f2';c.fillText('APL',px,y);
-  c.fillStyle=SPORTS[sport].col;c.fillText(' 3D',px+c.measureText('APL').width,y);
-  y+=fsL+pad;
-  c.font=`600 ${fsS}px -apple-system,sans-serif`;c.fillStyle=SPORTS[sport].col;
-  c.fillText(ko?SPORTS[sport].ko:SPORTS[sport].en,px,y);y+=fsS+pad*2;
+  // 헤더
+  let y=pad*2;
+  c.font=`900 ${fsL}px -apple-system,sans-serif`;
+  c.fillStyle='#e8e8f2';c.fillText('APL',px,y+fsL);
+  c.fillStyle=SPORTS[sport].col;c.fillText(' 3D',px+c.measureText('APL').width,y+fsL);
+  y+=fsL+Math.round(pad*0.4);
+  c.font=`600 ${Math.round(fsS*0.85)}px -apple-system,sans-serif`;
+  c.fillStyle=SPORTS[sport].col;
+  c.fillText(ko?SPORTS[sport].ko:SPORTS[sport].en,px,y+fsS);
+  y+=fsS+pad;
 
-  const div=()=>{c.fillStyle='rgba(255,255,255,.15)';c.fillRect(px,y,panW-pad*2,1);y+=pad*0.8;};
+  // 구분선
+  const div=()=>{
+    c.fillStyle='rgba(255,255,255,.13)';
+    c.fillRect(px,y,panW-pad*2,1);
+    y+=Math.round(pad*0.5);
+  };
+  // 스택형 행: 레이블 위, 값 아래
   const row=(lbl,val,col)=>{
-    if(y>H-pad*3)return;
-    c.font=`${fsS}px -apple-system,sans-serif`;c.fillStyle='rgba(255,255,255,.5)';
-    c.textAlign='left';c.fillText(lbl,px,y+rowH*0.75);
-    c.font=`700 ${fsL}px -apple-system,sans-serif`;c.fillStyle=col;
-    c.textAlign='right';c.fillText(val,W-pad,y+rowH*0.75);
-    c.textAlign='left';y+=rowH;
+    if(y+rH>H-pad)return;
+    c.font=`${fsS}px -apple-system,sans-serif`;
+    c.fillStyle='rgba(255,255,255,.42)';
+    c.fillText(lbl,px,y+fsS);
+    y+=fsS+2;
+    c.font=`700 ${fsL}px -apple-system,sans-serif`;
+    c.fillStyle=col;
+    c.fillText(val,px,y+fsL);
+    y+=fsL+Math.round(pad*0.7);
   };
   const f=v=>(v>=0?'+':'')+v+'°';
 
+  // 회전각
   div();
   row(ko?'어깨':'Sh',f(lastA.shR||0),'#a855f7');
   row(ko?'골반':'Hip',f(lastA.hipR||0),'#f97316');
-  const xv=lastA.xf||0;row('X',f(xv),Math.abs(xv)>25?'#22c55e':Math.abs(xv)>10?'#eab308':'rgba(255,255,255,.45)');
-  y+=pad;div();
+  const xv=lastA.xf||0;
+  row('X-factor',f(xv),Math.abs(xv)>25?'#22c55e':Math.abs(xv)>10?'#eab308':'rgba(255,255,255,.45)');
+
+  // 자세
+  y+=Math.round(pad*0.3);div();
   row(ko?'척추':'Spine',(lastA.sp||0)+'°','#06b6d4');
-  row(ko?'전방':'Fwd',f(lastA.fl||0),'rgba(255,255,255,.7)');
-  y+=pad;div();
-  row(ko?'어깨°/s':'Sh°/s',Math.round(angVel.sh)+'°/s','#a855f7');
-  row(ko?'골반°/s':'Hip°/s',Math.round(angVel.hip)+'°/s','#f97316');
-  if(spJ.length){y+=pad;div();spJ.forEach(j=>{row(ko?j.ko:j.en,(lastA[j.id]||0)+'°',j.col);});}
-  // 점프 높이 (SPL 전용)
+  row(ko?'전방':'Fwd lean',f(lastA.fl||0),'rgba(255,255,255,.7)');
+
+  // 회전속도
+  y+=Math.round(pad*0.3);div();
+  row(ko?'어깨 °/s':'Sh °/s',Math.round(angVel.sh)+'','#a855f7');
+  row(ko?'골반 °/s':'Hip °/s',Math.round(angVel.hip)+'','#f97316');
+
+  // 종목별 관절
+  const spJ=SPORTS[sport].joints;
+  if(spJ.length){y+=Math.round(pad*0.3);div();spJ.forEach(j=>{row(ko?j.ko:j.en,(lastA[j.id]||0)+'°',j.col);});}
+
+  // 점프 최고 (SPL 전용) — 0이면 '--' 표시
   if(sport==='SPL'){
-    y+=pad;div();
-    row(ko?'점프 현재':'Jump Now',jumpH.toFixed(1)+'cm','#06b6d4');
-    row(ko?'점프 최고':'Jump Peak',peakJumpH.toFixed(1)+'cm','#eab308');
+    y+=Math.round(pad*0.3);div();
+    row(ko?'점프 최고':'Peak Jump',peakJumpH>0?peakJumpH.toFixed(1)+'cm':'--','#06b6d4');
   }
 }
 
