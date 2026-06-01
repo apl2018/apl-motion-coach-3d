@@ -140,7 +140,7 @@ header{display:flex;align-items:center;justify-content:space-between;
    z-order: vid(1) < vid2(2) < canvas(3)
    — A 완전 불투명, B가 위에서 50% 반투명으로 겹침 */
 #vid2{position:absolute;width:100%;height:100%;object-fit:contain;opacity:0;display:none;pointer-events:none;z-index:2}
-#vid2.cmp-on{display:block;opacity:0}   /* B: CSS 비표시 — MediaPipe용으로 재생 유지, 화면엔 canvas로 마스킹된 선수만 표시 */
+#vid2.cmp-on{display:block;opacity:0.60;mix-blend-mode:screen}   /* B: screen blend — 어두운 배경 투명, A 밝기 유지 */
 #vid{z-index:1}
 #cvs{z-index:3}
 /* A: 비교모드에서도 항상 100% */
@@ -171,7 +171,7 @@ header{display:flex;align-items:center;justify-content:space-between;
 <header>
   <div>
     <span class="h-logo">APL Motion Coach <span class="accent">3D</span></span>
-    <span class="h-ver">v20</span>
+    <span class="h-ver">v21</span>
   </div>
   <div class="h-right">
     <button id="prm-badge" class="free">FREE</button>
@@ -373,11 +373,6 @@ let _prmPendingCb=null;
 // ── 비교 분석 모드 ────────────────────────
 let compareMode=false; // 두 영상 비교 모드 (프리미엄 전용)
 let vid2Loaded=false;
-// ── B 영상 AI 배경 제거 (선수만 추출) ────────
-let detSeg=null;          // 두 번째 PoseLandmarker (IMAGE mode, segmentation)
-let _maskCvs=null;        // 마스킹된 B 선수 offscreen canvas
-let _tmpMaskCvs=null;     // 마스크 데이터용 임시 canvas
-let _maskUpdT=0;          // 마지막 마스크 업데이트 시각
 // ── 일시정지 ──────────────────────────────
 let isPaused=false;
 // ── 회전 속도 ─────────────────────────────
@@ -401,86 +396,6 @@ const $=id=>document.getElementById(id);
 const vid=$('vid'),vid2=$('vid2'),cvs=$('cvs'),ctx=cvs.getContext('2d');
 const gC=$('graph-cvs')||{},gX=gC.getContext?gC.getContext('2d'):null;
 
-/* ── B 영상 AI 배경 제거 ──────────────────────────────────────────
-   두 번째 PoseLandmarker (IMAGE mode)로 vid2 선수 픽셀만 추출.
-   destination-in 합성으로 선수 영역만 alpha 유지 → canvas에 오버레이.
-   5fps(200ms) 스로틀로 성능 유지. */
-async function initSegDetector(){
-  if(detSeg)return;
-  try{
-    const v=await FilesetResolver.forVisionTasks(WASM);
-    // GPU 우선 시도, 실패 시 CPU fallback
-    try{
-      detSeg=await PoseLandmarker.createFromOptions(v,{
-        baseOptions:{modelAssetPath:MODEL,delegate:'GPU'},
-        runningMode:'IMAGE',numPoses:1,
-        minPoseDetectionConfidence:.3,minPosePresenceConfidence:.3,minTrackingConfidence:.3,
-        outputSegmentationMasks:true,
-      });
-    }catch(e1){
-      detSeg=await PoseLandmarker.createFromOptions(v,{
-        baseOptions:{modelAssetPath:MODEL,delegate:'CPU'},
-        runningMode:'IMAGE',numPoses:1,
-        minPoseDetectionConfidence:.3,minPosePresenceConfidence:.3,minTrackingConfidence:.3,
-        outputSegmentationMasks:true,
-      });
-    }
-    console.log('[APL] segDet ready');
-  }catch(e){console.warn('[APL] segDet init fail:',e);}
-}
-
-function updateVid2Mask(){
-  if(!detSeg||!vid2Loaded||!compareMode||vid2.readyState<2)return;
-  if(performance.now()-_maskUpdT<200)return; // 5fps 스로틀
-  _maskUpdT=performance.now();
-  try{
-    const res=detSeg.detect(vid2);
-    const segs=res.segmentationMasks;
-    if(!segs||!segs.length)return;
-    const mask=segs[0];
-    const mW=mask.width,mH=mask.height;
-    // Uint8Array: 0=배경, 255=선수 (중간값=경계)
-    const maskData=mask.getAsUint8Array();
-    segs.forEach(m=>m.close());
-
-    // 마스크 임시 canvas 준비
-    if(!_tmpMaskCvs||_tmpMaskCvs.width!==mW||_tmpMaskCvs.height!==mH){
-      _tmpMaskCvs=document.createElement('canvas');
-      _tmpMaskCvs.width=mW;_tmpMaskCvs.height=mH;
-    }
-    const tmpCtx=_tmpMaskCvs.getContext('2d');
-    // 마스크를 alpha-only ImageData로 변환
-    const imgD=new ImageData(mW,mH);
-    for(let i=0;i<mW*mH;i++) imgD.data[i*4+3]=maskData[i]; // R,G,B=0, A=마스크값
-    tmpCtx.putImageData(imgD,0,0);
-
-    // vid2 native size
-    const vW=vid2.videoWidth||640,vH=vid2.videoHeight||480;
-    if(!_maskCvs){_maskCvs=document.createElement('canvas');}
-    _maskCvs.width=vW;_maskCvs.height=vH;
-    const mCtx=_maskCvs.getContext('2d');
-    mCtx.clearRect(0,0,vW,vH);
-    // ① vid2 원본 그리기
-    mCtx.drawImage(vid2,0,0,vW,vH);
-    // ② 마스크 적용: destination-in → 선수 픽셀만 alpha 유지
-    mCtx.globalCompositeOperation='destination-in';
-    mCtx.drawImage(_tmpMaskCvs,0,0,vW,vH);
-    mCtx.globalCompositeOperation='source-over';
-  }catch(e){console.warn('[APL] mask update err:',e);}
-}
-
-/* 마스킹된 B 선수를 대상 컨텍스트에 letterbox 보정하여 그리기 */
-function drawMaskedB(ctx,W,H,alpha){
-  if(!_maskCvs||!_maskCvs.width)return;
-  const vW=vid2.videoWidth||_maskCvs.width,vH=vid2.videoHeight||_maskCvs.height;
-  const vAr=vW/vH,cAr=W/H;
-  let dx,dy,dw,dh;
-  if(vAr>cAr){dh=W/vAr;dy=(H-dh)/2;dx=0;dw=W;}
-  else{dw=H*vAr;dx=(W-dw)/2;dy=0;dh=H;}
-  ctx.globalAlpha=alpha||0.90;
-  ctx.drawImage(_maskCvs,dx,dy,dw,dh);
-  ctx.globalAlpha=1;
-}
 
 /* ── INIT ── */
 async function init(){
@@ -520,8 +435,6 @@ function events(){
     const url=URL.createObjectURL(f);
     vid2.src=url;vid2.load();
     vid2Loaded=true;compareMode=true;
-    _maskCvs=null;_maskUpdT=0; // 이전 마스크 초기화
-    if(!detSeg)initSegDetector(); // 세그멘테이션 감지기 준비
     vid2.classList.add('cmp-on');
     $('vid-wrap').classList.add('cmp-on'); // 즉시 오버레이 활성 (슬라이더로 동시에 보기)
     $('seek-row-b').style.display='flex';
@@ -661,7 +574,6 @@ async function start_ana(){
   live=true;isPaused=false;
   wH=[];vH={};cur={};lastA={};lastLm=null;lastWlm=null;lastFrameT=0;
   angVel={sh:0,hip:0};angVelH={sh:[],hip:[]};_prevA=null;_prevAt=0;
-  _maskCvs=null;_maskUpdT=0; // B 마스크 초기화 (새 분석 시 갱신)
   jumpRef=null;jumpH=0;peakJumpH=0;jumpState='GROUND';
   jumpTakeoffT=0;jumpTakeoffY=0;_prevHipY=null;_prevHipT=0;_hipVel=0;
   fN=0;fT=performance.now();
@@ -695,8 +607,6 @@ function stop_ana(){
 function loop(){
   if(!live)return;
   const t=performance.now();
-  // 비교 모드: B 마스크 업데이트 (5fps 스로틀)
-  if(compareMode&&vid2Loaded)updateVid2Mask();
   if(!isPaused){
     if(vid.readyState>=2&&!vid.paused){
       try{const r=det.detectForVideo(vid,t);frame(r,t);}catch(e){console.warn(e);}
@@ -705,7 +615,6 @@ function loop(){
   }else if(lastLm&&lastWlm){
     // 일시정지: 마지막 프레임 재렌더
     resize();ctx.clearRect(0,0,cvs.width,cvs.height);
-    if(compareMode&&vid2Loaded)drawMaskedB(ctx,cvs.width,cvs.height,0.90);
     const vr=getVidRect(cvs.width,cvs.height);
     draw_sk_on(ctx,vr,lastLm,lastWlm);
     update_data_ov(lastA);
@@ -716,8 +625,6 @@ function loop(){
 /* ── 프레임 처리 ── */
 function frame(res,t){
   resize();ctx.clearRect(0,0,cvs.width,cvs.height);
-  // 비교 모드: 마스킹된 B 선수를 캔버스에 먼저 그리기 (A 영상 위, skeleton 아래)
-  if(compareMode&&vid2Loaded)drawMaskedB(ctx,cvs.width,cvs.height,0.90);
   if(!res.worldLandmarks||!res.worldLandmarks.length){$('no-det').classList.add('on');return;}
   $('no-det').classList.remove('on');
   const lm=res.landmarks[0],wlm=res.worldLandmarks[0];
@@ -772,63 +679,51 @@ function angles3d(w){
 }
 
 /* ── 회전 각속도 (°/s) ── */
-/* ── 점프 높이 감지 — 상태머신 + 비행시간 방식 ──────────────
-   1. 고관절 Y 속도로 SQUAT/TAKEOFF 감지
-   2. 이륙 시각 기록 → 착지 감지 시 비행시간 계산
-   3. h = g × (t_air/2)² / 2  (단위: cm)
-   이 공식은 발 센서와 동일한 물리 원리 (대칭 포물선 가정)
-   60fps: ±1-2cm, 30fps: ±3-5cm */
+/* ── 점프 높이 — 위치 기반 + 비행시간 물리 계산 ──────────────────
+   속도 계산 불필요. 고관절 Y 위치 + 실제 비행시간만 사용.
+   GROUND: jumpRef 천천히 갱신(0.995/0.005 EMA ≈ 14%/s)
+   AIRBORNE 진입: 고관절이 기준점보다 4% 이상 위 (≈7cm for 1.7m 프레임)
+   높이: h = g×(t_eff/2)²/2  (재생속도 보정, 단위: cm)
+          비행 중 점점 증가 → 착지 순간 = 실제 최고 높이
+   착지: 고관절이 기준점 3% 이내 복귀 + 실제 200ms 이상 비행
+   재생속도 보정: 0.5×슬로우모션 영상도 정확한 실제 높이 계산
+   정확도: ±1-2cm (60fps), ±3-5cm (30fps) */
 function detectJump(wlm,t){
   const hipY=(wlm[23].y+wlm[24].y)/2;
   if(!t)t=lastFrameT||performance.now();
-  // 수직 속도 계산 (위 방향 = 양수)
-  if(_prevHipY!==null&&_prevHipT>0){
-    const dt=(t-_prevHipT)/1000;
-    if(dt>0&&dt<0.15){  // 0.1→0.15: 저프레임레이트 대응
-      const rawVel=(_prevHipY-hipY)/dt;
-      _hipVel=_hipVel*0.5+rawVel*0.5;  // 0.6/0.4→0.5/0.5: 더 빠르게 반응
-    }
-  }
-  _prevHipY=hipY;_prevHipT=t;
   if(jumpRef===null){jumpRef=hipY;return;}
+  // 재생 속도 보정 — 슬로우모션 영상의 실제 비행시간으로 환산
+  const pr=src==='camera'?1.0:(+($('spd-sel').value)||1.0);
 
   switch(jumpState){
     case'GROUND':
-      jumpRef=jumpRef*0.98+hipY*0.02;
+      // 기준점 매우 천천히 갱신 — 점프 중에는 따라가지 않도록
+      jumpRef=jumpRef*0.995+hipY*0.005;
       jumpH=0;
-      // 스쿼트 감지: 고관절 하강 > 3cm (5→3: 작은 준비동작도 감지)
-      if((hipY-jumpRef)*100>3)jumpState='SQUAT';
-      // 직접 도약 감지: 속도 임계값 낮춤 + 위치 기반 보조
-      if(_hipVel>0.7||(hipY<jumpRef-0.04&&_hipVel>0.3)){
-        jumpTakeoffY=hipY;jumpTakeoffT=t;jumpState='AIRBORNE';
-      }
-      break;
-    case'SQUAT':
-      jumpH=0;
-      // 도약 감지: 임계값 대폭 낮춤 + 위치 기반 보조
-      if(_hipVel>0.5||(hipY<jumpRef-0.05&&_hipVel>0.2)){
-        jumpTakeoffY=hipY;jumpTakeoffT=t;jumpState='AIRBORNE';
-      }
-      if((hipY-jumpRef)*100<2&&Math.abs(_hipVel)<0.3)jumpState='GROUND';
+      // 위치 기반 이륙 감지: 고관절이 기준점 4% 이상 위 (≈7cm)
+      if(hipY<jumpRef-0.04){jumpTakeoffT=t;jumpState='AIRBORNE';}
       break;
     case'AIRBORNE':{
       const airMs=t-jumpTakeoffT;
-      jumpH=Math.max(0,(jumpTakeoffY-hipY)*100);
+      const effMs=airMs*pr;           // 재생속도로 보정한 실제 비행시간
+      const tSec=effMs/1000;
+      // 비행시간 물리 공식: h=g×(t/2)²/2
+      // 비행 중 증가 → 착지 순간 = 실제 최고점 높이
+      jumpH=Math.min(200,Math.round(9.81*(tSec/2)*(tSec/2)/2*100));
       if(jumpH>peakJumpH)peakJumpH=jumpH;
-      // 착지 감지: 조건 완화 (0.04→0.03, 0.4→0.3, 150→100ms)
-      const nearGround=(hipY>=jumpTakeoffY-0.03)&&_hipVel<-0.3&&airMs>100;
-      if(nearGround){
-        const tSec=airMs/1000;
-        const physH=9.81*(tSec/2)*(tSec/2)/2*100;
-        if(physH>=2&&physH<=150)peakJumpH=Math.max(peakJumpH,physH); // 3→2cm
+      // 착지 감지: 기준점 3% 이내 복귀 + 실제 200ms 이상 비행
+      if(hipY>=jumpRef-0.03&&effMs>=200){
+        peakJumpH=Math.max(peakJumpH,jumpH);
         jumpState='LAND';jumpH=0;
       }
-      if(airMs>3000){jumpState='GROUND';}
+      if(airMs>5000)jumpState='GROUND'; // 5초 타임아웃
       break;}
     case'LAND':
       jumpH=0;
-      if(Math.abs(_hipVel)<0.2&&Math.abs((hipY-jumpRef)*100)<6){
-        jumpRef=hipY;jumpState='GROUND';
+      // 착지 후 안정화 → GROUND (기준점을 착지 위치로 업데이트)
+      if(hipY>=jumpRef-0.05){
+        jumpRef=jumpRef*0.95+hipY*0.05;
+        jumpState='GROUND';
       }
       break;
   }
@@ -1001,8 +896,14 @@ function drawCompFrame(){
     compCtx.drawImage(vid,dx,dy,dw,dh);
     compCtx.globalAlpha=1;
   }
-  // ② 마스킹된 B 선수만 A 위에 오버레이 (배경 없음)
-  if(compareMode&&vid2Loaded)drawMaskedB(compCtx,compW,compH,0.90);
+  // ② B 위에(screen blend: A 밝기 유지)
+  if(compareMode&&vid2Loaded&&vid2.readyState>=2){
+    compCtx.globalCompositeOperation='screen';
+    compCtx.globalAlpha=0.60;
+    compCtx.drawImage(vid2,dx,dy,dw,dh);
+    compCtx.globalAlpha=1;
+    compCtx.globalCompositeOperation='source-over';
+  }
   // 스켈레톤 (전체 영상 위에)
   if(lastLm&&lastWlm){draw_sk_on(compCtx,vr,lastLm,lastWlm,true,s);draw_arr_on(compCtx,vr,lastLm,lastWlm);}
   // 데이터 패널 — 우측에 오버레이
