@@ -171,7 +171,7 @@ header{display:flex;align-items:center;justify-content:space-between;
 <header>
   <div>
     <span class="h-logo">APL Motion Coach <span class="accent">3D</span></span>
-    <span class="h-ver">v22</span>
+    <span class="h-ver">v24</span>
   </div>
   <div class="h-right">
     <button id="prm-badge" class="free">FREE</button>
@@ -637,7 +637,7 @@ function frame(res,t){
   const a=angles3d(wlm);
   velLinear(wlm,t);computeAngVel(a,t);
   lastA=a;
-  if(sport==='SPL')detectJump(wlm,t);
+  detectJump(wlm,t); // 모든 종목에서 점프 감지
   update_panel(a);update_data_ov(a);
 }
 
@@ -697,11 +697,12 @@ function detectJump(wlm,t){
 
   switch(jumpState){
     case'GROUND':
-      // 기준점 매우 천천히 갱신 — 점프 중에는 따라가지 않도록
-      jumpRef=jumpRef*0.995+hipY*0.005;
+      // 기준점 빠르게 갱신 (0.95/0.05 = 85%/s, ~1초면 안정화)
+      // GROUND 상태에서만 갱신 → 공중에 있을 때는 기준점 고정
+      jumpRef=jumpRef*0.95+hipY*0.05;
       jumpH=0;
-      // 위치 기반 이륙 감지: 고관절이 기준점 4% 이상 위 (≈7cm)
-      if(hipY<jumpRef-0.04){jumpTakeoffT=t;jumpState='AIRBORNE';}
+      // 위치 기반 이륙 감지: 고관절이 기준점 3% 이상 위 (≈5cm)
+      if(hipY<jumpRef-0.03){jumpTakeoffT=t;jumpState='AIRBORNE';}
       break;
     case'AIRBORNE':{
       const airMs=t-jumpTakeoffT;
@@ -896,9 +897,9 @@ function drawCompFrame(){
     compCtx.drawImage(vid,dx,dy,dw,dh);
     compCtx.globalAlpha=1;
   }
-  // ② B 위에(A가 진하게: source-over 50% — A 100% 베이스 유지)
+  // ② B 위에(A가 진하게: 30% — 앱 화면 CSS screen blend와 시각적으로 유사)
   if(compareMode&&vid2Loaded&&vid2.readyState>=2){
-    compCtx.globalAlpha=0.50;
+    compCtx.globalAlpha=0.30;
     compCtx.drawImage(vid2,dx,dy,dw,dh);
     compCtx.globalAlpha=1;
   }
@@ -916,10 +917,10 @@ function draw_comp_panel(c,W,H,s){
   const pad=Math.round(W*0.008);
   const fsS=Math.round(W*0.016);          // 레이블 폰트
   const fsL=Math.round(W*0.021);          // 값 폰트
-  const rH=fsS+fsL+Math.round(pad*0.6);  // 스택 행 높이
+  const rH=fsS+2+fsL+Math.round(pad*0.6); // 실제 행 높이 (레이블+값, drawRow 실제 y증가량과 일치)
   const divH=Math.round(pad*0.7);
   const r=Math.round(W*0.009);            // 모서리 반경
-  const boxW=Math.round(W*0.105);         // 박스 폭 (기존 0.14의 3/4)
+  const boxW=Math.round(W*0.105);         // 박스 폭
 
   // ── 콘텐츠 행 목록 수집 ──
   const f=v=>(v>=0?'+':'')+v+'°';
@@ -927,23 +928,19 @@ function draw_comp_panel(c,W,H,s){
   const items=[];
   // 헤더
   const hdrH=fsL+Math.round(pad*0.3)+Math.round(fsS*0.85)+Math.round(pad*0.8);
-  // 데이터 행
-  items.push(null); // div
+  // 데이터 행 (척추/전방 제외 — 박스 높이 초과 방지, 앱 패널에서 확인 가능)
+  items.push(null);
   items.push({lbl:ko?'어깨':'Sh',val:f(lastA.shR||0),col:'#a855f7'});
   items.push({lbl:ko?'골반':'Hip',val:f(lastA.hipR||0),col:'#f97316'});
   const xv=lastA.xf||0;
   items.push({lbl:'X-factor',val:f(xv),col:Math.abs(xv)>25?'#22c55e':Math.abs(xv)>10?'#eab308':'rgba(255,255,255,.5)'});
   items.push(null);
-  items.push({lbl:ko?'척추':'Spine',val:(lastA.sp||0)+'°',col:'#06b6d4'});
-  items.push({lbl:ko?'전방':'Fwd',val:f(lastA.fl||0),col:'rgba(255,255,255,.7)'});
-  items.push(null);
   items.push({lbl:ko?'어깨°/s':'Sh°/s',val:Math.round(angVel.sh)+'',col:'#a855f7'});
   items.push({lbl:ko?'골반°/s':'Hip°/s',val:Math.round(angVel.hip)+'',col:'#f97316'});
   if(spJ.length){items.push(null);spJ.forEach(j=>items.push({lbl:ko?j.ko:j.en,val:(lastA[j.id]||0)+'°',col:j.col}));}
-  if(sport==='SPL'){
-    items.push(null);
-    items.push({lbl:ko?'점프최고':'Peak Jump',val:peakJumpH>0?peakJumpH.toFixed(1)+'cm':'--',col:'#06b6d4'});
-  }
+  // 점프 최고 — 모든 종목 표시
+  items.push(null);
+  items.push({lbl:ko?'점프최고':'Peak Jump',val:peakJumpH>0?peakJumpH.toFixed(1)+'cm':'--',col:'#06b6d4'});
 
   // ── 박스 높이 계산 ──
   const nRows=items.filter(i=>i!==null).length;
