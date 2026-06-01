@@ -136,15 +136,15 @@ header{display:flex;align-items:center;justify-content:space-between;
 .btn-cmp{background:rgba(34,197,94,.15);color:var(--green);border:1px solid rgba(34,197,94,.3);font-size:10px;height:30px;padding:0 8px;white-space:nowrap;border-radius:8px;cursor:pointer;flex-shrink:0}
 .btn-cmp.on{background:var(--green);color:#fff}
 .btn-cmp:active{opacity:.6}
-/* 비교 모드: A(vid)=분석 영상(90% 진하게, 위), B(vid2)=베이스 ghost(100%, 아래)
-   z-order: vid2(1) < vid(2) < canvas(3)
-   — A가 B 위에 올라가 90% 불투명 → B가 A 뒤에서 10% 비침 */
-#vid2{position:absolute;width:100%;height:100%;object-fit:contain;opacity:0;display:none;pointer-events:none;z-index:1}
-#vid2.cmp-on{display:block;opacity:1.0}   /* B: 100% 베이스 (A 뒤에서 ghost) */
-#vid{z-index:2}
+/* 비교 모드: A(vid)=100% 베이스(아래), B(vid2)=50% ghost(위에 오버레이)
+   z-order: vid(1) < vid2(2) < canvas(3)
+   — A 완전 불투명, B가 위에서 50% 반투명으로 겹침 */
+#vid2{position:absolute;width:100%;height:100%;object-fit:contain;opacity:0;display:none;pointer-events:none;z-index:2}
+#vid2.cmp-on{display:block;opacity:0.50}   /* B: 50% ghost (A 위에 오버레이) */
+#vid{z-index:1}
 #cvs{z-index:3}
-/* A: 비교모드에서 75% — B가 25% 비침 (충분히 보임) */
-#vid-wrap.cmp-on #vid.show{opacity:0.75}
+/* A: 비교모드에서도 항상 100% */
+#vid-wrap.cmp-on #vid.show{opacity:1.0}
 @media(max-width:380px){#right-panel{width:64px}.btn{font-size:10px}.btn-main{padding:0 12px}}
 /* ── 프리미엄 배지 & 모달 ── */
 #prm-badge{font-size:10px;font-weight:800;padding:3px 8px;border-radius:10px;cursor:pointer;border:none;min-height:28px}
@@ -171,7 +171,7 @@ header{display:flex;align-items:center;justify-content:space-between;
 <header>
   <div>
     <span class="h-logo">APL Motion Coach <span class="accent">3D</span></span>
-    <span class="h-ver">v16</span>
+    <span class="h-ver">v17</span>
   </div>
   <div class="h-right">
     <button id="prm-badge" class="free">FREE</button>
@@ -904,16 +904,16 @@ function drawCompFrame(){
     else{dw=compH*vAr;dx=(compW-dw)/2;}
     vr={x:dx,y:dy,w:dw,h:dh};
   }
-  // ① B 먼저(베이스 ghost, 100%)
-  if(compareMode&&vid2Loaded&&vid2.readyState>=2){
+  // ① A 먼저(분석 영상, 100% 베이스)
+  if(vid.readyState>=2){
     compCtx.globalAlpha=1.0;
-    compCtx.drawImage(vid2,dx,dy,dw,dh);
+    compCtx.drawImage(vid,dx,dy,dw,dh);
     compCtx.globalAlpha=1;
   }
-  // ② A 위에(분석 영상, 75% 진하게 — B 25% 비침)
-  if(vid.readyState>=2){
-    compCtx.globalAlpha=compareMode?0.75:1.0;
-    compCtx.drawImage(vid,dx,dy,dw,dh);
+  // ② B 위에(비교 ghost, 50% 오버레이)
+  if(compareMode&&vid2Loaded&&vid2.readyState>=2){
+    compCtx.globalAlpha=0.50;
+    compCtx.drawImage(vid2,dx,dy,dw,dh);
     compCtx.globalAlpha=1;
   }
   // 스켈레톤 (전체 영상 위에)
