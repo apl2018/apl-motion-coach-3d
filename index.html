@@ -140,7 +140,7 @@ header{display:flex;align-items:center;justify-content:space-between;
    z-order: vid(1) < vid2(2) < canvas(3)
    — A 완전 불투명, B가 위에서 50% 반투명으로 겹침 */
 #vid2{position:absolute;width:100%;height:100%;object-fit:contain;opacity:0;display:none;pointer-events:none;z-index:2}
-#vid2.cmp-on{display:block;opacity:0.50}   /* B: 50% ghost (A 위에 오버레이) */
+#vid2.cmp-on{display:block;opacity:0}   /* B: CSS 비표시 — MediaPipe용으로 재생 유지, 화면엔 canvas로 마스킹된 선수만 표시 */
 #vid{z-index:1}
 #cvs{z-index:3}
 /* A: 비교모드에서도 항상 100% */
@@ -171,7 +171,7 @@ header{display:flex;align-items:center;justify-content:space-between;
 <header>
   <div>
     <span class="h-logo">APL Motion Coach <span class="accent">3D</span></span>
-    <span class="h-ver">v18</span>
+    <span class="h-ver">v20</span>
   </div>
   <div class="h-right">
     <button id="prm-badge" class="free">FREE</button>
@@ -373,6 +373,11 @@ let _prmPendingCb=null;
 // ── 비교 분석 모드 ────────────────────────
 let compareMode=false; // 두 영상 비교 모드 (프리미엄 전용)
 let vid2Loaded=false;
+// ── B 영상 AI 배경 제거 (선수만 추출) ────────
+let detSeg=null;          // 두 번째 PoseLandmarker (IMAGE mode, segmentation)
+let _maskCvs=null;        // 마스킹된 B 선수 offscreen canvas
+let _tmpMaskCvs=null;     // 마스크 데이터용 임시 canvas
+let _maskUpdT=0;          // 마지막 마스크 업데이트 시각
 // ── 일시정지 ──────────────────────────────
 let isPaused=false;
 // ── 회전 속도 ─────────────────────────────
@@ -395,6 +400,87 @@ let compW=1280,compH=720;
 const $=id=>document.getElementById(id);
 const vid=$('vid'),vid2=$('vid2'),cvs=$('cvs'),ctx=cvs.getContext('2d');
 const gC=$('graph-cvs')||{},gX=gC.getContext?gC.getContext('2d'):null;
+
+/* ── B 영상 AI 배경 제거 ──────────────────────────────────────────
+   두 번째 PoseLandmarker (IMAGE mode)로 vid2 선수 픽셀만 추출.
+   destination-in 합성으로 선수 영역만 alpha 유지 → canvas에 오버레이.
+   5fps(200ms) 스로틀로 성능 유지. */
+async function initSegDetector(){
+  if(detSeg)return;
+  try{
+    const v=await FilesetResolver.forVisionTasks(WASM);
+    // GPU 우선 시도, 실패 시 CPU fallback
+    try{
+      detSeg=await PoseLandmarker.createFromOptions(v,{
+        baseOptions:{modelAssetPath:MODEL,delegate:'GPU'},
+        runningMode:'IMAGE',numPoses:1,
+        minPoseDetectionConfidence:.3,minPosePresenceConfidence:.3,minTrackingConfidence:.3,
+        outputSegmentationMasks:true,
+      });
+    }catch(e1){
+      detSeg=await PoseLandmarker.createFromOptions(v,{
+        baseOptions:{modelAssetPath:MODEL,delegate:'CPU'},
+        runningMode:'IMAGE',numPoses:1,
+        minPoseDetectionConfidence:.3,minPosePresenceConfidence:.3,minTrackingConfidence:.3,
+        outputSegmentationMasks:true,
+      });
+    }
+    console.log('[APL] segDet ready');
+  }catch(e){console.warn('[APL] segDet init fail:',e);}
+}
+
+function updateVid2Mask(){
+  if(!detSeg||!vid2Loaded||!compareMode||vid2.readyState<2)return;
+  if(performance.now()-_maskUpdT<200)return; // 5fps 스로틀
+  _maskUpdT=performance.now();
+  try{
+    const res=detSeg.detect(vid2);
+    const segs=res.segmentationMasks;
+    if(!segs||!segs.length)return;
+    const mask=segs[0];
+    const mW=mask.width,mH=mask.height;
+    // Uint8Array: 0=배경, 255=선수 (중간값=경계)
+    const maskData=mask.getAsUint8Array();
+    segs.forEach(m=>m.close());
+
+    // 마스크 임시 canvas 준비
+    if(!_tmpMaskCvs||_tmpMaskCvs.width!==mW||_tmpMaskCvs.height!==mH){
+      _tmpMaskCvs=document.createElement('canvas');
+      _tmpMaskCvs.width=mW;_tmpMaskCvs.height=mH;
+    }
+    const tmpCtx=_tmpMaskCvs.getContext('2d');
+    // 마스크를 alpha-only ImageData로 변환
+    const imgD=new ImageData(mW,mH);
+    for(let i=0;i<mW*mH;i++) imgD.data[i*4+3]=maskData[i]; // R,G,B=0, A=마스크값
+    tmpCtx.putImageData(imgD,0,0);
+
+    // vid2 native size
+    const vW=vid2.videoWidth||640,vH=vid2.videoHeight||480;
+    if(!_maskCvs){_maskCvs=document.createElement('canvas');}
+    _maskCvs.width=vW;_maskCvs.height=vH;
+    const mCtx=_maskCvs.getContext('2d');
+    mCtx.clearRect(0,0,vW,vH);
+    // ① vid2 원본 그리기
+    mCtx.drawImage(vid2,0,0,vW,vH);
+    // ② 마스크 적용: destination-in → 선수 픽셀만 alpha 유지
+    mCtx.globalCompositeOperation='destination-in';
+    mCtx.drawImage(_tmpMaskCvs,0,0,vW,vH);
+    mCtx.globalCompositeOperation='source-over';
+  }catch(e){console.warn('[APL] mask update err:',e);}
+}
+
+/* 마스킹된 B 선수를 대상 컨텍스트에 letterbox 보정하여 그리기 */
+function drawMaskedB(ctx,W,H,alpha){
+  if(!_maskCvs||!_maskCvs.width)return;
+  const vW=vid2.videoWidth||_maskCvs.width,vH=vid2.videoHeight||_maskCvs.height;
+  const vAr=vW/vH,cAr=W/H;
+  let dx,dy,dw,dh;
+  if(vAr>cAr){dh=W/vAr;dy=(H-dh)/2;dx=0;dw=W;}
+  else{dw=H*vAr;dx=(W-dw)/2;dy=0;dh=H;}
+  ctx.globalAlpha=alpha||0.90;
+  ctx.drawImage(_maskCvs,dx,dy,dw,dh);
+  ctx.globalAlpha=1;
+}
 
 /* ── INIT ── */
 async function init(){
@@ -434,6 +520,8 @@ function events(){
     const url=URL.createObjectURL(f);
     vid2.src=url;vid2.load();
     vid2Loaded=true;compareMode=true;
+    _maskCvs=null;_maskUpdT=0; // 이전 마스크 초기화
+    if(!detSeg)initSegDetector(); // 세그멘테이션 감지기 준비
     vid2.classList.add('cmp-on');
     $('vid-wrap').classList.add('cmp-on'); // 즉시 오버레이 활성 (슬라이더로 동시에 보기)
     $('seek-row-b').style.display='flex';
@@ -573,6 +661,7 @@ async function start_ana(){
   live=true;isPaused=false;
   wH=[];vH={};cur={};lastA={};lastLm=null;lastWlm=null;lastFrameT=0;
   angVel={sh:0,hip:0};angVelH={sh:[],hip:[]};_prevA=null;_prevAt=0;
+  _maskCvs=null;_maskUpdT=0; // B 마스크 초기화 (새 분석 시 갱신)
   jumpRef=null;jumpH=0;peakJumpH=0;jumpState='GROUND';
   jumpTakeoffT=0;jumpTakeoffY=0;_prevHipY=null;_prevHipT=0;_hipVel=0;
   fN=0;fT=performance.now();
@@ -606,16 +695,19 @@ function stop_ana(){
 function loop(){
   if(!live)return;
   const t=performance.now();
+  // 비교 모드: B 마스크 업데이트 (5fps 스로틀)
+  if(compareMode&&vid2Loaded)updateVid2Mask();
   if(!isPaused){
     if(vid.readyState>=2&&!vid.paused){
       try{const r=det.detectForVideo(vid,t);frame(r,t);}catch(e){console.warn(e);}
       fN++;if(t-fT>=1000){$('chip-fps').textContent=Math.round(fN*1000/(t-fT))+' fps';fN=0;fT=t;}
     }
   }else if(lastLm&&lastWlm){
-    // 일시정지: 마지막 프레임 재렌더 (분석값 그대로 표시)
+    // 일시정지: 마지막 프레임 재렌더
     resize();ctx.clearRect(0,0,cvs.width,cvs.height);
+    if(compareMode&&vid2Loaded)drawMaskedB(ctx,cvs.width,cvs.height,0.90);
     const vr=getVidRect(cvs.width,cvs.height);
-      draw_sk_on(ctx,vr,lastLm,lastWlm);
+    draw_sk_on(ctx,vr,lastLm,lastWlm);
     update_data_ov(lastA);
   }
   raf=requestAnimationFrame(loop);
@@ -624,6 +716,8 @@ function loop(){
 /* ── 프레임 처리 ── */
 function frame(res,t){
   resize();ctx.clearRect(0,0,cvs.width,cvs.height);
+  // 비교 모드: 마스킹된 B 선수를 캔버스에 먼저 그리기 (A 영상 위, skeleton 아래)
+  if(compareMode&&vid2Loaded)drawMaskedB(ctx,cvs.width,cvs.height,0.90);
   if(!res.worldLandmarks||!res.worldLandmarks.length){$('no-det').classList.add('on');return;}
   $('no-det').classList.remove('on');
   const lm=res.landmarks[0],wlm=res.worldLandmarks[0];
@@ -690,9 +784,9 @@ function detectJump(wlm,t){
   // 수직 속도 계산 (위 방향 = 양수)
   if(_prevHipY!==null&&_prevHipT>0){
     const dt=(t-_prevHipT)/1000;
-    if(dt>0&&dt<0.1){
-      const rawVel=(_prevHipY-hipY)/dt; // 위로 이동하면 양수
-      _hipVel=_hipVel*0.6+rawVel*0.4;
+    if(dt>0&&dt<0.15){  // 0.1→0.15: 저프레임레이트 대응
+      const rawVel=(_prevHipY-hipY)/dt;
+      _hipVel=_hipVel*0.5+rawVel*0.5;  // 0.6/0.4→0.5/0.5: 더 빠르게 반응
     }
   }
   _prevHipY=hipY;_prevHipT=t;
@@ -700,42 +794,39 @@ function detectJump(wlm,t){
 
   switch(jumpState){
     case'GROUND':
-      // 기준값 천천히 갱신 (서있을 때만)
       jumpRef=jumpRef*0.98+hipY*0.02;
       jumpH=0;
-      // 스쿼트 감지: 고관절 하강 > 5cm
-      if((hipY-jumpRef)*100>5)jumpState='SQUAT';
-      // 직접 도약 감지 (스쿼트 없이 바로 상승)
-      if(_hipVel>1.2){jumpTakeoffY=hipY;jumpTakeoffT=t;jumpState='AIRBORNE';}
+      // 스쿼트 감지: 고관절 하강 > 3cm (5→3: 작은 준비동작도 감지)
+      if((hipY-jumpRef)*100>3)jumpState='SQUAT';
+      // 직접 도약 감지: 속도 임계값 낮춤 + 위치 기반 보조
+      if(_hipVel>0.7||(hipY<jumpRef-0.04&&_hipVel>0.3)){
+        jumpTakeoffY=hipY;jumpTakeoffT=t;jumpState='AIRBORNE';
+      }
       break;
     case'SQUAT':
       jumpH=0;
-      // 강한 상향 속도 = 도약 감지
-      if(_hipVel>1.0){jumpTakeoffY=hipY;jumpTakeoffT=t;jumpState='AIRBORNE';}
-      // 스쿼트 취소 (너무 느리면 다시 GROUND)
+      // 도약 감지: 임계값 대폭 낮춤 + 위치 기반 보조
+      if(_hipVel>0.5||(hipY<jumpRef-0.05&&_hipVel>0.2)){
+        jumpTakeoffY=hipY;jumpTakeoffT=t;jumpState='AIRBORNE';
+      }
       if((hipY-jumpRef)*100<2&&Math.abs(_hipVel)<0.3)jumpState='GROUND';
       break;
     case'AIRBORNE':{
       const airMs=t-jumpTakeoffT;
-      // 현재 고관절 상승량 (cm)
       jumpH=Math.max(0,(jumpTakeoffY-hipY)*100);
       if(jumpH>peakJumpH)peakJumpH=jumpH;
-      // 착지 감지: 하강 속도 + 이륙 높이 근접 + 최소 비행시간 0.15s
-      const nearGround=(hipY>=jumpTakeoffY-0.04)&&_hipVel<-0.4&&airMs>150;
+      // 착지 감지: 조건 완화 (0.04→0.03, 0.4→0.3, 150→100ms)
+      const nearGround=(hipY>=jumpTakeoffY-0.03)&&_hipVel<-0.3&&airMs>100;
       if(nearGround){
-        // 비행시간으로 정확한 높이 재계산: h = g*(t/2)²/2
         const tSec=airMs/1000;
-        const physH=9.81*(tSec/2)*(tSec/2)/2*100; // cm
-        // 합리적 범위(3~150cm)면 물리 계산값 사용
-        if(physH>=3&&physH<=150)peakJumpH=Math.max(peakJumpH,physH);
+        const physH=9.81*(tSec/2)*(tSec/2)/2*100;
+        if(physH>=2&&physH<=150)peakJumpH=Math.max(peakJumpH,physH); // 3→2cm
         jumpState='LAND';jumpH=0;
       }
-      // 타임아웃 3초
       if(airMs>3000){jumpState='GROUND';}
       break;}
     case'LAND':
       jumpH=0;
-      // 고관절 안정화 → GROUND
       if(Math.abs(_hipVel)<0.2&&Math.abs((hipY-jumpRef)*100)<6){
         jumpRef=hipY;jumpState='GROUND';
       }
@@ -910,12 +1001,8 @@ function drawCompFrame(){
     compCtx.drawImage(vid,dx,dy,dw,dh);
     compCtx.globalAlpha=1;
   }
-  // ② B 위에(비교 ghost, 35% 오버레이)
-  if(compareMode&&vid2Loaded&&vid2.readyState>=2){
-    compCtx.globalAlpha=0.50;
-    compCtx.drawImage(vid2,dx,dy,dw,dh);
-    compCtx.globalAlpha=1;
-  }
+  // ② 마스킹된 B 선수만 A 위에 오버레이 (배경 없음)
+  if(compareMode&&vid2Loaded)drawMaskedB(compCtx,compW,compH,0.90);
   // 스켈레톤 (전체 영상 위에)
   if(lastLm&&lastWlm){draw_sk_on(compCtx,vr,lastLm,lastWlm,true,s);draw_arr_on(compCtx,vr,lastLm,lastWlm);}
   // 데이터 패널 — 우측에 오버레이
@@ -923,43 +1010,85 @@ function drawCompFrame(){
 }
 
 
-/* ── 녹화 데이터 패널 ── 영상 우측 12% 반투명 오버레이 ──
-   레이아웃: 레이블(위) + 값(아래) 세로 쌓기 방식 */
+/* ── 녹화 데이터 패널 ── 영상 우측 중앙에 둥근 박스 오버레이 ──
+   전체 사이드 덮지 않음. 콘텐츠 크기만큼만 배경 그림. */
 function draw_comp_panel(c,W,H,s){
   const ko=lang==='ko';
-  const panW=Math.round(W*0.12);          // 우측 12% (슬림)
-  const pad=Math.round(W*0.007);
-  const px=W-panW+pad;
+  const pad=Math.round(W*0.008);
   const fsS=Math.round(W*0.016);          // 레이블 폰트
   const fsL=Math.round(W*0.021);          // 값 폰트
-  const rH=fsS+fsL+Math.round(pad*0.7);  // 스택 행 높이 (레이블+값)
+  const rH=fsS+fsL+Math.round(pad*0.6);  // 스택 행 높이
+  const divH=Math.round(pad*0.7);
+  const r=Math.round(W*0.009);            // 모서리 반경
+  const boxW=Math.round(W*0.14);          // 박스 폭
 
-  // 패널 배경
-  c.fillStyle='rgba(9,9,15,.88)';c.fillRect(W-panW,0,panW,H);
-  c.strokeStyle='rgba(255,255,255,.12)';c.lineWidth=1;
-  c.beginPath();c.moveTo(W-panW,0);c.lineTo(W-panW,H);c.stroke();
+  // ── 콘텐츠 행 목록 수집 ──
+  const f=v=>(v>=0?'+':'')+v+'°';
+  const spJ=SPORTS[sport].joints;
+  const items=[];
+  // 헤더
+  const hdrH=fsL+Math.round(pad*0.3)+Math.round(fsS*0.85)+Math.round(pad*0.8);
+  // 데이터 행
+  items.push(null); // div
+  items.push({lbl:ko?'어깨':'Sh',val:f(lastA.shR||0),col:'#a855f7'});
+  items.push({lbl:ko?'골반':'Hip',val:f(lastA.hipR||0),col:'#f97316'});
+  const xv=lastA.xf||0;
+  items.push({lbl:'X',val:f(xv),col:Math.abs(xv)>25?'#22c55e':Math.abs(xv)>10?'#eab308':'rgba(255,255,255,.5)'});
+  items.push(null);
+  items.push({lbl:ko?'척추':'Spine',val:(lastA.sp||0)+'°',col:'#06b6d4'});
+  items.push({lbl:ko?'전방':'Fwd',val:f(lastA.fl||0),col:'rgba(255,255,255,.7)'});
+  items.push(null);
+  items.push({lbl:ko?'어깨°/s':'Sh°/s',val:Math.round(angVel.sh)+'',col:'#a855f7'});
+  items.push({lbl:ko?'골반°/s':'Hip°/s',val:Math.round(angVel.hip)+'',col:'#f97316'});
+  if(spJ.length){items.push(null);spJ.forEach(j=>items.push({lbl:ko?j.ko:j.en,val:(lastA[j.id]||0)+'°',col:j.col}));}
+  if(sport==='SPL'){
+    items.push(null);
+    items.push({lbl:ko?'점프최고':'Peak Jump',val:peakJumpH>0?peakJumpH.toFixed(1)+'cm':'--',col:'#06b6d4'});
+  }
+
+  // ── 박스 높이 계산 ──
+  const nRows=items.filter(i=>i!==null).length;
+  const nDivs=items.filter(i=>i===null).length;
+  const contentH=hdrH+nRows*rH+nDivs*divH+pad*2;
+  const boxH=Math.min(H*0.92,contentH+pad*2);
+
+  // ── 박스 위치: 우측, 세로 중앙 ──
+  const bx=W-boxW-Math.round(W*0.012);
+  const by=Math.round((H-boxH)/2);
+
+  // ── 둥근 박스 배경 ──
+  c.beginPath();
+  c.moveTo(bx+r,by);
+  c.lineTo(bx+boxW-r,by);c.arcTo(bx+boxW,by,bx+boxW,by+r,r);
+  c.lineTo(bx+boxW,by+boxH-r);c.arcTo(bx+boxW,by+boxH,bx+boxW-r,by+boxH,r);
+  c.lineTo(bx+r,by+boxH);c.arcTo(bx,by+boxH,bx,by+boxH-r,r);
+  c.lineTo(bx,by+r);c.arcTo(bx,by,bx+r,by,r);
+  c.closePath();
+  c.fillStyle='rgba(9,9,15,.88)';c.fill();
+  c.strokeStyle='rgba(255,255,255,.18)';c.lineWidth=1;c.stroke();
+
+  // ── 콘텐츠 그리기 ──
+  const px=bx+pad;
+  let y=by+pad;
   c.textAlign='left';
 
-  // 헤더
-  let y=pad*2;
+  // 헤더 (APL 3D + 종목)
   c.font=`900 ${fsL}px -apple-system,sans-serif`;
   c.fillStyle='#e8e8f2';c.fillText('APL',px,y+fsL);
   c.fillStyle=SPORTS[sport].col;c.fillText(' 3D',px+c.measureText('APL').width,y+fsL);
-  y+=fsL+Math.round(pad*0.4);
+  y+=fsL+Math.round(pad*0.3);
   c.font=`600 ${Math.round(fsS*0.85)}px -apple-system,sans-serif`;
   c.fillStyle=SPORTS[sport].col;
-  c.fillText(ko?SPORTS[sport].ko:SPORTS[sport].en,px,y+fsS);
-  y+=fsS+pad;
+  c.fillText(ko?SPORTS[sport].ko:SPORTS[sport].en,px,y+Math.round(fsS*0.85));
+  y+=Math.round(fsS*0.85)+Math.round(pad*0.8);
 
-  // 구분선
-  const div=()=>{
-    c.fillStyle='rgba(255,255,255,.13)';
-    c.fillRect(px,y,panW-pad*2,1);
-    y+=Math.round(pad*0.5);
+  const drawDiv=()=>{
+    c.fillStyle='rgba(255,255,255,.15)';
+    c.fillRect(px,y,boxW-pad*2,1);
+    y+=divH;
   };
-  // 스택형 행: 레이블 위, 값 아래
-  const row=(lbl,val,col)=>{
-    if(y+rH>H-pad)return;
+  const drawRow=(lbl,val,col)=>{
+    if(y+rH>by+boxH-pad)return;
     c.font=`${fsS}px -apple-system,sans-serif`;
     c.fillStyle='rgba(255,255,255,.42)';
     c.fillText(lbl,px,y+fsS);
@@ -967,36 +1096,13 @@ function draw_comp_panel(c,W,H,s){
     c.font=`700 ${fsL}px -apple-system,sans-serif`;
     c.fillStyle=col;
     c.fillText(val,px,y+fsL);
-    y+=fsL+Math.round(pad*0.7);
+    y+=fsL+Math.round(pad*0.6);
   };
-  const f=v=>(v>=0?'+':'')+v+'°';
 
-  // 회전각
-  div();
-  row(ko?'어깨':'Sh',f(lastA.shR||0),'#a855f7');
-  row(ko?'골반':'Hip',f(lastA.hipR||0),'#f97316');
-  const xv=lastA.xf||0;
-  row('X-factor',f(xv),Math.abs(xv)>25?'#22c55e':Math.abs(xv)>10?'#eab308':'rgba(255,255,255,.45)');
-
-  // 자세
-  y+=Math.round(pad*0.3);div();
-  row(ko?'척추':'Spine',(lastA.sp||0)+'°','#06b6d4');
-  row(ko?'전방':'Fwd lean',f(lastA.fl||0),'rgba(255,255,255,.7)');
-
-  // 회전속도
-  y+=Math.round(pad*0.3);div();
-  row(ko?'어깨 °/s':'Sh °/s',Math.round(angVel.sh)+'','#a855f7');
-  row(ko?'골반 °/s':'Hip °/s',Math.round(angVel.hip)+'','#f97316');
-
-  // 종목별 관절
-  const spJ=SPORTS[sport].joints;
-  if(spJ.length){y+=Math.round(pad*0.3);div();spJ.forEach(j=>{row(ko?j.ko:j.en,(lastA[j.id]||0)+'°',j.col);});}
-
-  // 점프 최고 (SPL 전용) — 0이면 '--' 표시
-  if(sport==='SPL'){
-    y+=Math.round(pad*0.3);div();
-    row(ko?'점프 최고':'Peak Jump',peakJumpH>0?peakJumpH.toFixed(1)+'cm':'--','#06b6d4');
-  }
+  items.forEach(item=>{
+    if(item===null)drawDiv();
+    else drawRow(item.lbl,item.val,item.col);
+  });
 }
 
 
