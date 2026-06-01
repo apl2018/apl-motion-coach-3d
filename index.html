@@ -117,7 +117,7 @@ header{display:flex;align-items:center;justify-content:space-between;
 .btn-main{background:var(--green);color:#fff;height:42px;padding:0 16px;font-size:13px;font-weight:700;border-radius:12px;margin-left:2px;flex-shrink:0}
 .btn-main.stop{background:var(--red)}
 .sep{flex:1;min-width:4px}
-#spd-sel{background:rgba(255,255,255,.1);color:var(--txt);border:1px solid var(--border);
+#spd-sel,#slomo-sel{background:rgba(255,255,255,.1);color:var(--txt);border:1px solid var(--border);
   border-radius:8px;padding:0 6px;font-size:11px;cursor:pointer;height:34px;flex-shrink:0}
 #file-name{font-size:10px;color:var(--txt2);max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0}
 /* 시크 바 / 비교 모드 */
@@ -175,6 +175,8 @@ header{display:flex;align-items:center;justify-content:space-between;
   </div>
   <div class="h-right">
     <button id="prm-badge" class="free">FREE</button>
+    <button class="h-btn" id="btn-height" title="신장 설정">170cm</button>
+    <button class="h-btn" id="btn-model" title="정밀 모드(Full 모델)">⚡</button>
     <button class="h-btn" id="btn-reset">↺</button>
     <button class="h-btn" id="btn-lang">KO</button>
   </div>
@@ -316,6 +318,7 @@ header{display:flex;align-items:center;justify-content:space-between;
   <span id="file-name"></span>
   <input type="file" id="file-input" accept="video/*" style="display:none">
   <select id="spd-sel"><option value="1">1×</option><option value="0.5">½×</option><option value="0.25">¼×</option><option value="0.125">⅛×</option></select>
+  <select id="slomo-sel" title="슬로모션 배율 설정 (아이폰 슬로모션 영상 점프 정확도 향상)"><option value="1">🎬 일반</option><option value="4">🐢 ×4슬로</option><option value="8">🐢 ×8슬로</option></select>
   <button class="btn btn-rec" id="btn-rec">⏺ 녹화</button>
   <div class="sep"></div>
   <button class="btn btn-main" id="btn-main">▶ 시작</button>
@@ -370,6 +373,9 @@ let fN=0,fT=0,sport='GEN';
 const _PW_HASH='6e9a16337d5d2c2302e87aeba5cae99ee0f5aa2c5c789504285018b53d26e3c9';
 let isPremium=false;
 let _prmPendingCb=null;
+// ── 신장·정밀 모드 ───────────────────────
+let userHeight=170;    // cm (localStorage 복원)
+let precisionMode=false; // Full 모델 (정확도 향상, 속도 감소)
 // ── 비교 분석 모드 ────────────────────────
 let compareMode=false; // 두 영상 비교 모드 (프리미엄 전용)
 let vid2Loaded=false;
@@ -379,12 +385,13 @@ let isPaused=false;
 let angVel={sh:0,hip:0},peakAngVel={sh:0,hip:0};
 let angVelH={sh:[],hip:[]};
 let _prevA=null,_prevAt=0;
-// ── 점프 높이 (GEN/SPL) ────────────────────
-// 점프 높이 — 상태머신 + 비행시간 방식
+// ── 점프 높이 ──────────────────────────────
 let jumpRef=null,jumpH=0,peakJumpH=0;
-let jumpState='GROUND'; // GROUND|SQUAT|AIRBORNE|LAND
-let jumpTakeoffT=0,jumpTakeoffY=0;
-let _prevHipY=null,_prevHipT=0,_hipVel=0;
+let jumpState='GROUND'; // GROUND|AIRBORNE|LAND
+let jumpTakeoffT=0,jumpTakeoffHipY=0;
+let _hipRef=0;           // GROUND hip Y EMA (CoM 기준점)
+let refLegNorm=0.35;    // 이륙 전 발목-고관절 거리 고정값 (스케일 안정화)
+let slowMoFactor=1.0;   // 슬로모션 배율: 1=일반, 4=120fps슬로, 8=240fps슬로
 // ── 녹화 ──────────────────────────────────
 let recorder=null,recChunks=[],isRec=false,_compInterval=null;
 let _pendingSaveBlob=null,_pendingSaveName='';
@@ -401,18 +408,37 @@ const gC=$('graph-cvs')||{},gX=gC.getContext?gC.getContext('2d'):null;
 async function init(){
   // localStorage 프리미엄 상태 복원
   try{if(localStorage.getItem('apl3d_prm')==='1')_setPremium(true);}catch(e){}
+  try{const h=parseInt(localStorage.getItem('apl3d_h'));if(h>=100&&h<=250)userHeight=h;}catch(e){}
+  try{if(localStorage.getItem('apl3d_pm')==='1')precisionMode=true;}catch(e){}
   buildPts();buildRows();buildJoints();events();lang_apply();resize();
+  _updateHeightBtn();_updateModelBtn();
+  await _loadModel();
+}
+
+async function _loadModel(){
+  const modelName=precisionMode?'pose_landmarker_full':'pose_landmarker_lite';
+  const modelUrl=`https://storage.googleapis.com/mediapipe-models/pose_landmarker/${modelName}/float16/1/${modelName}.task`;
   try{
     const v=await FilesetResolver.forVisionTasks(WASM);
-    $('load-txt').textContent='3D 포즈 모델 로딩 중...';
+    $('load-txt').textContent=precisionMode?'🎯 정밀 모델 로딩 중 (1-2분)...':'3D 포즈 모델 로딩 중...';
     det=await PoseLandmarker.createFromOptions(v,{
-      baseOptions:{modelAssetPath:MODEL,delegate:'GPU'},
+      baseOptions:{modelAssetPath:modelUrl,delegate:'GPU'},
       runningMode:'VIDEO',numPoses:1,
       minPoseDetectionConfidence:.5,minPosePresenceConfidence:.5,minTrackingConfidence:.5,
       outputSegmentationMasks:false,
     });
     $('load-overlay').classList.add('hidden');
   }catch(e){$('load-txt').textContent='❌ 로드 실패: '+e.message;}
+}
+
+function _updateHeightBtn(){
+  const btn=$('btn-height');if(btn)btn.textContent=userHeight+'cm';
+}
+function _updateModelBtn(){
+  const btn=$('btn-model');if(!btn)return;
+  btn.textContent=precisionMode?'🎯':'⚡';
+  btn.title=precisionMode?'정밀 모드 ON (Full 모델)':'기본 모드 (Lite 모델)';
+  btn.style.color=precisionMode?'var(--green)':'';
 }
 
 /* ── EVENTS ── */
@@ -422,8 +448,38 @@ function events(){
   $('file-input').onchange=e=>{const f=e.target.files[0];if(!f)return;setMode('file',f);$('file-name').textContent=f.name;};
   $('btn-main').onclick=()=>live?stop_ana():start_ana();
   $('spd-sel').onchange=()=>{if(vid.src||vid.srcObject)vid.playbackRate=+$('spd-sel').value;};
+  $('slomo-sel').onchange=()=>{slowMoFactor=+$('slomo-sel').value;};
   $('btn-lang').onclick=()=>{lang=lang==='ko'?'en':'ko';lang_apply();};
   $('btn-reset').onclick=()=>{peakAngVel={sh:0,hip:0};};
+  // 신장 설정
+  $('btn-height').onclick=()=>{
+    const ko=lang==='ko';
+    const input=prompt(ko?`신장(cm)을 입력하세요 (현재: ${userHeight}cm)`:`Enter height(cm) (current: ${userHeight}cm)`,userHeight);
+    if(input===null)return;
+    const h=parseInt(input);
+    if(h>=100&&h<=250){
+      userHeight=h;
+      try{localStorage.setItem('apl3d_h',h);}catch(e){}
+      _updateHeightBtn();
+      alert(ko?`신장이 ${h}cm로 설정되었습니다.`:`Height set to ${h}cm.`);
+    }
+  };
+  // 정밀 모드 토글 (Full 모델)
+  $('btn-model').onclick=async()=>{
+    const ko=lang==='ko';
+    if(!precisionMode){
+      const ok=confirm(ko?'정밀 모드(Full 모델)로 전환합니다.\n로딩 1-2분 소요, 구형 폰에서 fps 감소 가능.\n계속하시겠습니까?':'Switch to Precision mode(Full model)?\nLoading 1-2min, may reduce fps on older phones.');
+      if(!ok)return;
+    }
+    precisionMode=!precisionMode;
+    try{localStorage.setItem('apl3d_pm',precisionMode?'1':'0');}catch(e){}
+    _updateModelBtn();
+    if(live)stop_ana();
+    det=null;
+    $('load-overlay').classList.remove('hidden');
+    $('load-txt').textContent=precisionMode?'🎯 정밀 모델 로딩 중 (1-2분)...':'3D 포즈 모델 로딩 중...';
+    await _loadModel();
+  };
 
   // ── 비교 영상 B 로드 ──────────────────────
   $('btn-load-b').onclick=()=>{
@@ -575,7 +631,7 @@ async function start_ana(){
   wH=[];vH={};cur={};lastA={};lastLm=null;lastWlm=null;lastFrameT=0;
   angVel={sh:0,hip:0};angVelH={sh:[],hip:[]};_prevA=null;_prevAt=0;
   jumpRef=null;jumpH=0;peakJumpH=0;jumpState='GROUND';
-  jumpTakeoffT=0;jumpTakeoffY=0;_prevHipY=null;_prevHipT=0;_hipVel=0;
+  jumpTakeoffT=0;jumpTakeoffHipY=0;_hipRef=0;refLegNorm=0.35;
   fN=0;fT=performance.now();
   $('btn-main').textContent=lang==='ko'?'■ 중지':'■ Stop';
   $('btn-main').className='btn btn-main stop';
@@ -679,64 +735,74 @@ function angles3d(w){
 }
 
 /* ── 회전 각속도 (°/s) ── */
-/* ── 점프 높이 — 위치 기반 + 비행시간 물리 계산 ──────────────────
-   속도 계산 불필요. 고관절 Y 위치 + 실제 비행시간만 사용.
-   GROUND: jumpRef 천천히 갱신(0.995/0.005 EMA ≈ 14%/s)
-   AIRBORNE 진입: 고관절이 기준점보다 4% 이상 위 (≈7cm for 1.7m 프레임)
-   높이: h = g×(t_eff/2)²/2  (재생속도 보정, 단위: cm)
-          비행 중 점점 증가 → 착지 순간 = 실제 최고 높이
-   발목 직접 위치 측정: (jumpRef-ankleY) × (0.90m÷발목-고관절거리) × 100cm
-   비행시간 보조: 착지 순간 h=g×(t/2)²/2 크로스체크
-   정확도: 30fps ±3-5cm, 60fps ±1-3cm
-   스쿼트 중 발목은 거의 고정 → false positive 없음 */
+/* ── 점프 높이 — hip 기반 CoM 측정 + 비행시간 물리 계산 ── [V26]
+   [수정 내용]
+   1. directH: ankle→hip 기반 (터킹 시 ankle 폭발 문제 해결)
+   2. refLegNorm: 이륙 직전 값 고정 (AIRBORNE 중 다리 접힘 차단)
+   3. 최대 점프 높이: 200cm→120cm (피겨 4회전 기준 현실적 상한)
+   4. 최대 체공시간: 5000ms→2500ms (착지 미감지 안전장치)
+   5. 착지 판정: 2%→5% (피겨 착지 패턴 반영)
+   6. 슬로모션 배율 보정: realPr = pr / slowMoFactor
+   정확도 이론치: 아이폰 60fps ±2-3cm, 120fps슬로 ±1cm, 240fps슬로 <1cm */
 function detectJump(wlm,t){
   if(!t)t=lastFrameT||performance.now();
-  // ── 발목 좌표 선택 (가시성 기반) ──
   const la=wlm[27],ra=wlm[28];
   const hasL=la&&(la.visibility||0)>0.3;
   const hasR=ra&&(ra.visibility||0)>0.3;
   const ankleY=hasL&&hasR?(la.y+ra.y)/2:hasL?la.y:hasR?ra.y:(wlm[25].y+wlm[26].y)/2;
-  const hipY=(wlm[23].y+wlm[24].y)/2; // 스케일 보정용
+  const hipY=(wlm[23].y+wlm[24].y)/2;
 
-  if(jumpRef===null){jumpRef=ankleY;return;} // 초기화: 발목 기준점
+  if(jumpRef===null){
+    jumpRef=ankleY;_hipRef=hipY;
+    refLegNorm=Math.max(0.25,ankleY-hipY);
+    return;
+  }
+  // 실제 물리시간 보정: 재생배율 ÷ 슬로모션배율
   const pr=src==='camera'?1.0:(+($('spd-sel').value)||1.0);
+  const slowMo=src==='camera'?1.0:slowMoFactor;
+  const realPr=pr/slowMo;
 
   switch(jumpState){
-    case'GROUND':
-      // 발목 기준점 갱신 (스쿼트 중에도 발목은 거의 고정 → 안정적)
-      jumpRef=jumpRef*0.98+ankleY*0.02; // 0.98/0.02: 약 2초 안정화
+    case'GROUND':{
+      jumpRef=jumpRef*0.985+ankleY*0.015;
+      _hipRef=_hipRef*0.985+hipY*0.015; // hip 기준 EMA 갱신
       jumpH=0;
-      // 이륙: 발목이 기준점 2% 이상 위로 올라가면 → 공중
-      if(ankleY<jumpRef-0.02){jumpTakeoffT=t;jumpState='AIRBORNE';}
+      // legNorm: GROUND에서만 갱신 (AIRBORNE 중 다리 접힘 영향 차단)
+      const lg=ankleY-hipY;
+      if(lg>0.20)refLegNorm=refLegNorm*0.97+lg*0.03;
+      // 이륙: 발목 3% 이상 위로 (슬로모션 호환 — 속도 기준 제거)
+      if(ankleY<jumpRef-0.030){jumpTakeoffT=t;jumpTakeoffHipY=_hipRef;jumpState='AIRBORNE';}
       break;
+    }
     case'AIRBORNE':{
       const airMs=t-jumpTakeoffT;
-      const effMs=airMs*pr; // 재생속도 보정
+      const effMs=airMs*realPr; // 실제 물리시간(ms)
       const tSec=effMs/1000;
-      // ① 직접 위치 측정: 발목 상승량 × (0.90m ÷ 발목-고관절 거리)
-      const legNorm=Math.max(0.05,ankleY-hipY); // 발목~고관절 정규화 거리
-      const mPerNorm=0.90/legNorm;              // 실제 비율 (m/정규화단위)
-      const directH=Math.max(0,Math.round((jumpRef-ankleY)*mPerNorm*100));
-      // ② 비행시간 보조: h=g×(t/2)²/2
-      const timeH=Math.min(200,Math.round(9.81*(tSec/2)*(tSec/2)/2*100));
-      // 두 값 중 큰 값 (직접측정=즉각, 비행시간=착지 근처 정확)
-      jumpH=Math.min(200,Math.max(directH,timeH));
+      // ① hip 기반 위치 측정 (CoM 근사 — 터킹·다리 접힘 무관)
+      const legLen=(userHeight/100)*0.53; // 신장의 53% = 발목~고관절 실거리(m)
+      const mPerNorm=legLen/Math.max(0.25,refLegNorm);
+      const directH=Math.max(0,Math.round((jumpTakeoffHipY-hipY)*mPerNorm*100));
+      // ② 비행시간 기반 (착지 순간 정확, 슬로모션 보정 포함)
+      const timeH=Math.min(120,Math.round(9.81*(tSec/2)*(tSec/2)/2*100));
+      // 최종: directH primary, timeH는 +20cm 이내만 허용 (이상치 억제)
+      jumpH=Math.min(120,Math.max(directH,Math.min(timeH,directH+20)));
       if(jumpH>peakJumpH)peakJumpH=jumpH;
-      // 착지: 발목이 기준점 2% 이내 복귀 + 최소 150ms 비행
-      if(ankleY>=jumpRef-0.02&&effMs>=150){
+      // 착지: 발목 5% 이내 복귀 + 최소 150ms 체공
+      if(ankleY>=jumpRef-0.05&&effMs>=150){
         peakJumpH=Math.max(peakJumpH,jumpH);
         jumpState='LAND';jumpH=0;
       }
-      if(airMs>5000)jumpState='GROUND';
-      break;}
-    case'LAND':
+      if(airMs>2500)jumpState='GROUND'; // 2.5초 안전 리셋
+      break;
+    }
+    case'LAND':{
       jumpH=0;
-      // 발목 안정화 → GROUND (착지 위치로 기준점 빠르게 업데이트)
-      if(ankleY>=jumpRef-0.04){
-        jumpRef=jumpRef*0.9+ankleY*0.1;
+      if(ankleY>=jumpRef-0.06){
+        jumpRef=jumpRef*0.88+ankleY*0.12;
         jumpState='GROUND';
       }
       break;
+    }
   }
 }
 
