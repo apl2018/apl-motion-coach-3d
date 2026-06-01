@@ -116,18 +116,25 @@ header{display:flex;align-items:center;justify-content:space-between;
 #spd-sel{background:rgba(255,255,255,.1);color:var(--txt);border:1px solid var(--border);
   border-radius:8px;padding:0 6px;font-size:11px;cursor:pointer;height:34px;flex-shrink:0}
 #file-name{font-size:10px;color:var(--txt2);max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0}
-/* 시크 바 (파일 모드 전용) */
+/* 시크 바 / 비교 모드 */
 #seek-wrap{background:var(--card);border-top:1px solid var(--border);
-  padding:6px 10px;flex-shrink:0;display:none}
+  padding:5px 10px;flex-shrink:0;display:none}
 #seek-wrap.on{display:block}
-.seek-row{display:flex;align-items:center;gap:6px;margin-bottom:4px}
-#seek-bar{flex:1;height:4px;accent-color:var(--blue);cursor:pointer;border-radius:2px}
-#seek-time{font-size:10px;color:var(--txt2);white-space:nowrap;min-width:72px;text-align:right;font-variant-numeric:tabular-nums}
-#ref-msg{font-size:10px;line-height:1.4}
-.btn-ref{background:rgba(34,197,94,.15);color:var(--green);border:1px solid rgba(34,197,94,.3);font-size:11px;height:34px;padding:0 10px;white-space:nowrap}
-.btn-ref:active{opacity:.6}
-.btn-prev{background:rgba(255,255,255,.1);color:var(--txt);width:34px;height:34px;padding:0;font-size:14px;border:none;border-radius:8px;cursor:pointer}
+.seek-row{display:flex;align-items:center;gap:5px;margin-bottom:3px}
+.seek-lbl{font-size:10px;font-weight:700;color:var(--txt2);width:14px;flex-shrink:0}
+.seek-lbl.a{color:var(--blue)}.seek-lbl.b{color:var(--green)}
+#seek-bar,#seek-bar-b{flex:1;height:4px;accent-color:var(--blue);cursor:pointer}
+#seek-bar-b{accent-color:var(--green)}
+.seek-time{font-size:9px;color:var(--txt2);white-space:nowrap;min-width:60px;text-align:right;font-variant-numeric:tabular-nums}
+#ref-msg{font-size:10px;color:var(--green)}
+.btn-prev{background:rgba(255,255,255,.1);color:var(--txt);width:30px;height:30px;padding:0;font-size:13px;border:none;border-radius:7px;cursor:pointer;flex-shrink:0}
 .btn-prev:active{opacity:.6}
+.btn-cmp{background:rgba(34,197,94,.15);color:var(--green);border:1px solid rgba(34,197,94,.3);font-size:10px;height:30px;padding:0 8px;white-space:nowrap;border-radius:8px;cursor:pointer;flex-shrink:0}
+.btn-cmp.on{background:var(--green);color:#fff}
+.btn-cmp:active{opacity:.6}
+/* 비교 영상 오버레이 */
+#vid2{position:absolute;width:100%;height:100%;object-fit:contain;opacity:0;display:none;pointer-events:none}
+#vid2.cmp-on{display:block;opacity:0.35}
 @media(max-width:380px){#right-panel{width:64px}.btn{font-size:10px}.btn-main{padding:0 12px}}
 </style>
 </head>
@@ -151,6 +158,7 @@ header{display:flex;align-items:center;justify-content:space-between;
 </div>
 <div id="app-body">
   <div id="vid-wrap">
+    <video id="vid2" muted playsinline></video>
     <video id="vid" autoplay muted playsinline></video>
     <canvas id="cvs"></canvas>
     <div id="load-overlay">
@@ -232,15 +240,29 @@ header{display:flex;align-items:center;justify-content:space-between;
   </div>
 </div>
 
-<!-- 시크 바: 파일 모드에서 기준 자세 프레임 탐색 -->
+<!-- 시크 바 / 비교 분석 모드 -->
 <div id="seek-wrap">
+  <!-- 영상 A (메인) -->
   <div class="seek-row">
+    <span class="seek-lbl a">A</span>
     <button class="btn-prev" id="btn-preview">▶</button>
     <input type="range" id="seek-bar" min="0" max="1000" value="0">
-    <span id="seek-time">0:00 / 0:00</span>
-    <button class="btn btn-ref" id="btn-capture-ref">👻 기준설정</button>
+    <span class="seek-time" id="seek-time">0:00</span>
   </div>
-  <div><span id="ref-msg" style="color:var(--txt2)"></span></div>
+  <!-- 영상 B (비교, 비교모드 시 표시) -->
+  <div class="seek-row" id="seek-row-b" style="display:none">
+    <span class="seek-lbl b">B</span>
+    <button class="btn-prev" id="btn-preview-b">▶</button>
+    <input type="range" id="seek-bar-b" min="0" max="1000" value="0">
+    <span class="seek-time" id="seek-time-b">0:00</span>
+  </div>
+  <!-- 액션 버튼 -->
+  <div class="seek-row" style="margin-top:2px;gap:6px">
+    <button class="btn-cmp" id="btn-load-b">📁 <span id="btn-load-b-lbl">비교 영상</span></button>
+    <input type="file" id="file-input-b" accept="video/*" style="display:none">
+    <button class="btn-cmp on" id="btn-sync-play" style="display:none">▶ <span id="btn-sync-lbl">동시 재생</span></button>
+    <span id="ref-msg"></span>
+  </div>
 </div>
 
 <div id="ctrl-bar">
@@ -249,7 +271,6 @@ header{display:flex;align-items:center;justify-content:space-between;
   <span id="file-name"></span>
   <input type="file" id="file-input" accept="video/*" style="display:none">
   <select id="spd-sel"><option value="1">1×</option><option value="0.5">½×</option><option value="0.25">¼×</option><option value="0.125">⅛×</option></select>
-  <button class="btn btn-icon" id="btn-ghost" title="기준 자세 설정">👻</button>
   <button class="btn btn-rec" id="btn-rec">⏺ 녹화</button>
   <div class="sep"></div>
   <button class="btn btn-main" id="btn-main">▶ 시작</button>
@@ -299,10 +320,9 @@ let wH=[],vH={},cur={},lastA={};
 let lastLm=null,lastWlm=null,lastFrameT=0;
 let sel=new Set([]);
 let fN=0,fT=0,sport='GEN';
-// ── 기준 자세 (Ghost) ──────────────────────
-// 캡처 당시의 2D+3D 랜드마크를 모두 저장 → 캡처 위치에 고정 그림
-let ghostLm2d=null,ghostWlm=null,showGhost=false;
-let ghostFrameCanvas=null; // 기준 자세 시점의 실제 영상 프레임 저장
+// ── 비교 분석 모드 ────────────────────────
+let compareMode=false; // 두 영상 비교 모드
+let vid2Loaded=false;
 // ── 일시정지 ──────────────────────────────
 let isPaused=false;
 // ── 회전 속도 ─────────────────────────────
@@ -318,7 +338,7 @@ const compCtx=compCvs.getContext('2d');
 let compW=1280,compH=720;
 
 const $=id=>document.getElementById(id);
-const vid=$('vid'),cvs=$('cvs'),ctx=cvs.getContext('2d');
+const vid=$('vid'),vid2=$('vid2'),cvs=$('cvs'),ctx=cvs.getContext('2d');
 const gC=$('graph-cvs')||{},gX=gC.getContext?gC.getContext('2d'):null;
 
 /* ── INIT ── */
@@ -347,23 +367,67 @@ function events(){
   $('btn-lang').onclick=()=>{lang=lang==='ko'?'en':'ko';lang_apply();};
   $('btn-reset').onclick=()=>{peakAngVel={sh:0,hip:0};};
 
-  // ── 기준 자세 버튼 ──
-  // 사용법: ⏸로 멈추거나, 원하는 순간에 누르면 그 프레임 골격이 초록 고정 오버레이로 남음
-  $('btn-ghost').onclick=()=>{
-    if(!live)return;
-    if(showGhost){
-      // 해제
-      showGhost=false;ghostLm2d=null;ghostWlm=null;ghostFrameCanvas=null;
-    }else{
-      // 캡처: 현재(또는 마지막) 프레임의 2D+3D 랜드마크 저장
-      if(!lastLm||!lastWlm){alert(lang==='ko'?'포즈가 감지되지 않았습니다':'Pose not detected');return;}
-      ghostLm2d=lastLm.map(l=>({...l}));
-      ghostWlm=lastWlm.map(l=>({...l}));
-      ghostFrameCanvas=captureVideoFrame(); // 실제 영상 프레임 캡처
-      showGhost=true;
+  // ── 비교 영상 B 로드 ──────────────────────
+  $('btn-load-b').onclick=()=>$('file-input-b').click();
+  $('file-input-b').onchange=e=>{
+    const f=e.target.files[0];if(!f)return;
+    const url=URL.createObjectURL(f);
+    vid2.src=url;vid2.load();
+    vid2Loaded=true;compareMode=true;
+    vid2.classList.add('cmp-on'); // 35% opacity 오버레이
+    $('seek-row-b').style.display='flex';
+    $('btn-sync-play').style.display='';
+    setRefMsg((lang==='ko'?`비교 영상: ${f.name}`:`Ref: ${f.name}`),'var(--green)');
+  };
+  vid2.onloadedmetadata=()=>{
+    $('seek-bar-b').value=0;
+    $('seek-time-b').textContent='0:00';
+  };
+  vid2.ontimeupdate=()=>{
+    if(vid2.duration){
+      $('seek-bar-b').value=(vid2.currentTime/vid2.duration)*1000;
+      $('seek-time-b').textContent=fmtTime(vid2.currentTime);
     }
-    $('chip-ghost').style.display=showGhost?'':'none';
-    $('btn-ghost').classList.toggle('on',showGhost);
+  };
+  // seek bar B
+  let _isSeeking2=false,_prevPlaying2=false;
+  $('seek-bar-b').oninput=()=>{
+    _isSeeking2=true;
+    if(vid2.duration)vid2.currentTime=($('seek-bar-b').value/1000)*vid2.duration;
+    $('seek-time-b').textContent=fmtTime(vid2.currentTime);
+  };
+  $('seek-bar-b').onchange=()=>{_isSeeking2=false;};
+  $('btn-preview-b').onclick=()=>{
+    _prevPlaying2=!_prevPlaying2;
+    if(_prevPlaying2)vid2.play().catch(()=>{_prevPlaying2=false;});
+    else vid2.pause();
+    $('btn-preview-b').textContent=_prevPlaying2?'⏸':'▶';
+  };
+  vid2.onpause=()=>{_prevPlaying2=false;$('btn-preview-b').textContent='▶';};
+  // 동시 재생 버튼 — 현재 seek 위치에서 두 영상 동시 시작
+  $('btn-sync-play').onclick=async()=>{
+    if(!det){alert(lang==='ko'?'모델 로딩 중':'Loading...');return;}
+    // start_ana 호출 (영상 A 분석 + 재생)
+    if(!live){
+      showSeekWrap(false);
+      vid.playbackRate=+$('spd-sel').value;
+      await vid.play().catch(()=>{});
+      // 영상 B도 동시 재생
+      if(compareMode&&vid2Loaded){
+        vid2.playbackRate=+$('spd-sel').value;
+        await vid2.play().catch(()=>{});
+      }
+      vid.classList.add('show');
+      live=true;isPaused=false;
+      wH=[];vH={};cur={};lastA={};lastLm=null;lastWlm=null;lastFrameT=0;
+      angVel={sh:0,hip:0};angVelH={sh:[],hip:[]};_prevA=null;_prevAt=0;
+      jumpRef=null;jumpH=0;peakJumpH=0;fN=0;fT=performance.now();
+      $('btn-main').textContent=lang==='ko'?'■ 중지':'■ Stop';
+      $('btn-main').className='btn btn-main stop';
+      $('no-det').classList.remove('on');
+      $('pause-overlay').className='pause-overlay';
+      loop();
+    }
   };
 
   $('btn-rec').onclick=()=>isRec?stopRec():startRec();
@@ -406,7 +470,7 @@ function events(){
     $('btn-preview').textContent=_previewPlaying?'⏸':'▶';
   };
 
-  $('btn-capture-ref').onclick=captureRefAtFrame;
+  // btn-capture-ref 제거됨 (비교 모드로 대체)
 }
 
 function setSport(s){
@@ -458,6 +522,7 @@ function stop_ana(){
   if(raf){cancelAnimationFrame(raf);raf=null;}
   if(src==='camera'&&stream){stream.getTracks().forEach(t=>t.stop());stream=null;vid.srcObject=null;}
   else vid.pause();
+  if(compareMode&&vid2Loaded)vid2.pause();
   vid.classList.remove('show');
   $('btn-main').textContent=lang==='ko'?'▶ 시작':'▶ Start';
   $('btn-main').className='btn btn-main';
@@ -481,8 +546,7 @@ function loop(){
     // 일시정지: 마지막 프레임 재렌더 (분석값 그대로 표시)
     resize();ctx.clearRect(0,0,cvs.width,cvs.height);
     const vr=getVidRect(cvs.width,cvs.height);
-    if(showGhost&&ghostLm2d)draw_ghost_on(ctx,vr,ghostLm2d,ghostWlm);
-    draw_sk_on(ctx,vr,lastLm,lastWlm);
+      draw_sk_on(ctx,vr,lastLm,lastWlm);
     update_data_ov(lastA);
   }
   raf=requestAnimationFrame(loop);
@@ -498,7 +562,6 @@ function frame(res,t){
   wH.push({wlm,t});
   const cut=t-GRAPH_MS-2000;while(wH.length>1&&wH[0].t<cut)wH.shift();
   const vr=getVidRect(cvs.width,cvs.height);
-  if(showGhost&&ghostLm2d)draw_ghost_on(ctx,vr,ghostLm2d,ghostWlm);
   draw_sk_on(ctx,vr,lm,wlm);
   draw_arr_on(ctx,vr,lm,wlm);
   const a=angles3d(wlm);
@@ -607,10 +670,11 @@ function velLinear(wlm,t){
    compCanvas(녹화): lw≈3, kr≈8 (고해상도에서 가시성 유지)  */
 /* s = compH/960 scale factor (2D 앱 기준). forRec 시 2D 앱처럼 고정 크기 */
 function draw_sk_on(c,vr,lm,wlm,forRec,s){
-  const _s=forRec?(s||1):1;
-  // 2D 앱 기준: 라인 3px, 관절점 반지름 8px at 960px height
-  const lw=forRec?Math.max(1.5,3*_s):Math.max(1.5,vr.h/450);
-  const kr=forRec?Math.max(3,Math.round(8*_s)):Math.max(2.5,vr.h/320);
+  // 2D 앱 기준: lineWidth=3, radius=8 at 960h
+  // 고해상도(1920h) 과대 방지: s를 1.0 이하로 cap
+  const _s=forRec?Math.min(s||1, 1.0):1;
+  const lw=forRec?Math.max(1.5,Math.min(3.5,3*_s)):Math.max(1.5,vr.h/450);
+  const kr=forRec?Math.max(2,Math.min(7,Math.round(6*_s))):Math.max(2.5,vr.h/320);
   const px=i=>vr.x+lm[i].x*vr.w,py=i=>vr.y+lm[i].y*vr.h;
   const vi=i=>lm[i].visibility||0;
   BONES.forEach(([a,b])=>{
@@ -630,27 +694,6 @@ function draw_sk_on(c,vr,lm,wlm,forRec,s){
   }
 }
 
-/* ── 기준 자세: 캡처 시점 영상 프레임을 흐리게 오버레이 ──
-   스켈레톤 대신 실제 영상을 반투명+블러로 표시
-   → 선수의 실제 자세가 그대로 보임 */
-function captureVideoFrame(){
-  if(!vid.videoWidth||vid.readyState<2)return null;
-  const oc=document.createElement('canvas');
-  oc.width=vid.videoWidth;oc.height=vid.videoHeight;
-  oc.getContext('2d').drawImage(vid,0,0,oc.width,oc.height);
-  return oc;
-}
-function draw_ghost_on(c,vr,_gLm,_gWlm){
-  // 영상 프레임 오버레이 (흐리게)
-  if(ghostFrameCanvas){
-    // 라이브 캔버스: 30% 불투명도로 현재 영상 위에 오버레이
-    c.globalAlpha=0.30;
-    try{c.filter='blur(1px)';}catch(e){}
-    c.drawImage(ghostFrameCanvas,vr.x,vr.y,vr.w,vr.h);
-    try{c.filter='none';}catch(e){}
-    c.globalAlpha=1;
-  }
-}
 
 function draw_arr_on(c,vr,lm,wlm){
   if(wH.length<2)return;
@@ -742,17 +785,15 @@ function drawCompFrame(){
     else{dw=compH*vAr;dx=(vidAreaW-dw)/2;}
     vr={x:dx,y:dy,w:dw,h:dh};
   }
-  // ① 기준 자세 먼저 (배경에 반투명): 선수의 기준 자세만 흐리게
-  if(showGhost&&ghostFrameCanvas){
-    compCtx.globalAlpha=0.65;
-    try{compCtx.filter='blur(0.5px)';}catch(e){}
-    compCtx.drawImage(ghostFrameCanvas,dx,dy,dw,dh);
-    try{compCtx.filter='none';}catch(e){}
+  // ① 비교 영상 B (배경, 35% 불투명도)
+  if(compareMode&&vid2Loaded&&vid2.readyState>=2){
+    compCtx.globalAlpha=0.35;
+    compCtx.drawImage(vid2,dx,dy,dw,dh);
     compCtx.globalAlpha=1;
   }
-  // ② 현재 분석 영상 (ghost 있을 때 약간 투명해서 ghost가 살짝 비침)
+  // ② 현재 분석 영상 A (95%)
   if(vid.readyState>=2){
-    compCtx.globalAlpha=showGhost?0.78:1.0;
+    compCtx.globalAlpha=compareMode?0.95:1.0;
     compCtx.drawImage(vid,dx,dy,dw,dh);
     compCtx.globalAlpha=1;
   }
@@ -830,13 +871,13 @@ function draw_graph_on_comp(c,vr){
 
 function draw_comp_panel(c,W,H,panW,s){
   const ko=lang==='ko';
-  const _s=s||H/960;
-  // 2D 앱 기준 s=1@960px: 폰트, 패딩 모두 비례
-  const pad=Math.max(3,Math.round(6*_s));
+  const _s=Math.min(s||H/960,1.2); // cap scale: 2D 앱 기준
+  // 2D 앱(s=1@960h): label=8px, value=12px, pad=6px
+  const pad=Math.max(3,Math.round(5*_s));
   const px=W-panW+pad;
-  const fs=Math.max(8,Math.round(14*_s));   // 본문 폰트
-  const fsS=Math.max(7,Math.round(11*_s));  // 소형 폰트
-  const fsL=Math.max(9,Math.round(15*_s));  // 강조 폰트
+  const fsS=Math.max(7,Math.round(8*_s));   // 레이블 (2D앱 8px)
+  const fs=Math.max(8,Math.round(10*_s));   // 중간
+  const fsL=Math.max(8,Math.round(11*_s));  // 값 (2D앱 12px, 약간 줄임)
   c.fillStyle='rgba(9,9,15,.84)';c.fillRect(W-panW,0,panW,H);
   c.strokeStyle='rgba(255,255,255,.12)';c.lineWidth=1;
   c.beginPath();c.moveTo(W-panW,0);c.lineTo(W-panW,H);c.stroke();
@@ -849,11 +890,15 @@ function draw_comp_panel(c,W,H,panW,s){
 
   const div=()=>{c.fillStyle='rgba(255,255,255,.1)';c.fillRect(px,y,panW-pad*2,1);y+=pad;};
   const sec=(t2)=>{c.font=`700 ${fsS}px -apple-system,sans-serif`;c.fillStyle='rgba(255,255,255,.45)';c.fillText(t2,px,y);y+=fsS+pad*0.5;};
+  // row: 레이블과 값을 같은 줄에, 같은 높이로 표시 (2D앱 스타일)
   const row=(lbl,val,col)=>{
-    if(y>H-pad*4)return;
-    c.font=`${fsS}px -apple-system,sans-serif`;c.fillStyle='rgba(255,255,255,.45)';c.fillText(lbl,px,y);
-    c.font=`800 ${fsL}px -apple-system,sans-serif`;c.fillStyle=col;c.textAlign='right';
-    c.fillText(val,W-pad,y);c.textAlign='left';y+=fsL+pad*0.3;
+    if(y>H-pad*3)return;
+    const rowH=Math.round(fsL*1.6);
+    c.font=`${fsS}px -apple-system,sans-serif`;c.fillStyle='rgba(255,255,255,.45)';
+    c.textAlign='left';c.fillText(lbl,px,y+rowH*0.7);
+    c.font=`700 ${fsL}px -apple-system,sans-serif`;c.fillStyle=col;
+    c.textAlign='right';c.fillText(val,W-pad,y+rowH*0.7);
+    c.textAlign='left';y+=rowH;
   };
   const f=v=>(v>=0?'+':'')+v+'°';
 
@@ -884,13 +929,13 @@ function draw_comp_panel(c,W,H,panW,s){
    꺾은선 그래프: -2,-1,0 시간축, 0=지금 */
 function draw_graph_overlay(c,W,H,panW,s){
   const ko=lang==='ko';
-  const _s=s||H/960;
-  const DISP_MS=2000; // 표시 구간: -2s ~ 0(지금)
+  const _s=Math.min(s||H/960,1.2);
+  const DISP_MS=2000;
   const DATA_MS=2000;
-  const pad=Math.max(3,Math.round(5*_s));
-  const fsG=Math.max(7,Math.round(10*_s));
-  const timeAxisH=Math.round(fsG*1.7);
-  const gH=Math.round(H*0.14*_s/1+20); // 그래프 높이
+  const pad=Math.max(3,Math.round(4*_s));
+  const fsG=Math.max(7,Math.round(9*_s));
+  const timeAxisH=Math.round(fsG*1.8);
+  const gH=Math.max(30,Math.round(55*_s)); // 이전 높이 수준, 비례 고정
   const gW=panW-pad*2;
   const gX=W-panW+pad;
   const gY=H-gH-timeAxisH-pad;
@@ -1041,9 +1086,10 @@ function lang_apply(){
   $('btn-cam').textContent='📷'+(ko?' 카메라':' Cam');
   $('btn-file').textContent='📁'+(ko?' 파일':' File');
   if(!live)$('btn-main').textContent=ko?'▶ 시작':'▶ Start';
-  // chip-ghost, btn-rec 다국어
-  if($('chip-ghost'))$('chip-ghost').textContent=ko?'👻 기준':'👻 Base';
+  // btn-rec, 비교 모드 다국어
   if(!isRec&&$('btn-rec'))$('btn-rec').textContent=ko?'⏺ 녹화':'⏺ Rec';
+  $('btn-load-b-lbl').textContent=ko?'비교 영상':'Compare';
+  $('btn-sync-lbl').textContent=ko?'동시 재생':'Sync Play';
   $('pause-badge').textContent=ko?'⏸ 일시정지 — 👻 기준 자세 설정':'⏸ Paused — Set 👻 reference';
   $('do-lbl-sh').textContent=ko?'어깨':'Sh';$('do-lbl-hip').textContent=ko?'골반':'Hip';
   $('do-lbl-lknee').textContent=ko?'왼무릎':'L.Knee';$('do-lbl-rknee').textContent=ko?'오른무릎':'R.Knee';
@@ -1088,39 +1134,6 @@ function setRefMsg(txt,col){
    이후 ▶ 시작을 누르면 영상이 처음부터 재생되며 기준 골격이 오버레이됨.
    기준 자세는 명시적으로 👻 버튼으로 해제하기 전까지 유지됨.
    다른 파일로 바꾸어 분석해도 기준 자세는 계속 표시됨. */
-async function captureRefAtFrame(){
-  if(!det){setRefMsg(lang==='ko'?'⏳ 모델 로딩 중...':'⏳ Model loading...','var(--yellow)');return;}
-  if(!vid.videoWidth||vid.readyState<2){
-    setRefMsg(lang==='ko'?'⚠️ 영상을 먼저 로드하세요':'⚠️ Load a video first','var(--yellow)');return;
-  }
-  // 캡처 전 영상 정지
-  const wasPlaying=!vid.paused;if(wasPlaying)vid.pause();
-  // onseeked 이벤트 대기 (seek 중일 수 있음)
-  await new Promise(r=>setTimeout(r,80));
-  try{
-    const t=performance.now();
-    const res=det.detectForVideo(vid,t);
-    if(!res.landmarks||!res.landmarks.length){
-      setRefMsg(lang==='ko'?'⚠️ 포즈 미감지 — 전신이 보이는 프레임 선택':'⚠️ No pose — choose frame with full body','var(--yellow)');
-      if(wasPlaying)vid.play().catch(()=>{});
-      return;
-    }
-    ghostLm2d=res.landmarks[0].map(l=>({...l}));
-    ghostWlm=res.worldLandmarks[0].map(l=>({...l}));
-    ghostFrameCanvas=captureVideoFrame(); // 실제 영상 프레임 저장
-    showGhost=true;
-    // 캔버스에 기준 자세 미리보기
-    resize();ctx.clearRect(0,0,cvs.width,cvs.height);
-    const vr=getVidRect(cvs.width,cvs.height);
-    draw_ghost_on(ctx,vr,ghostLm2d,ghostWlm);
-    $('chip-ghost').style.display='';
-    $('btn-ghost').classList.add('on');
-    setRefMsg(lang==='ko'?'✅ 기준 자세 설정 완료! ▶ 시작을 눌러 처음부터 분석하세요.':'✅ Reference set! Press ▶ Start to analyze from beginning.','var(--green)');
-  }catch(e){
-    setRefMsg('❌ '+e.message,'var(--red)');
-  }
-  if(wasPlaying)vid.play().catch(()=>{});
-}
 
 init();
 </script>
