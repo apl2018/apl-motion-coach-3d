@@ -60,15 +60,15 @@ header{display:flex;align-items:center;justify-content:space-between;
 .chip.green{border-color:var(--green);color:var(--green)}
 .chip.yellow{border-color:var(--yellow);color:var(--yellow)}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
-/* 실시간 데이터 오버레이 */
-#data-ov{position:absolute;top:8px;right:8px;
-  background:rgba(0,0,0,.78);border:1px solid rgba(255,255,255,.15);
-  border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;gap:4px;
-  min-width:112px;pointer-events:none}
-.do-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.do-lbl{font-size:10px;color:var(--txt2);white-space:nowrap}
-.do-val{font-size:13px;font-weight:800;font-variant-numeric:tabular-nums}
-.do-div{height:1px;background:rgba(255,255,255,.1);margin:1px 0}
+/* 실시간 데이터 오버레이 — 최소 크기 */
+#data-ov{position:absolute;top:6px;right:6px;
+  background:rgba(0,0,0,.72);border:1px solid rgba(255,255,255,.12);
+  border-radius:7px;padding:3px 5px;display:flex;flex-direction:column;gap:1px;
+  min-width:78px;pointer-events:none}
+.do-row{display:flex;align-items:center;justify-content:space-between;gap:4px}
+.do-lbl{font-size:7px;color:var(--txt2);white-space:nowrap}
+.do-val{font-size:9px;font-weight:800;font-variant-numeric:tabular-nums}
+.do-div{height:1px;background:rgba(255,255,255,.1);margin:0}
 /* 일시정지 오버레이 */
 #pause-overlay{position:absolute;inset:0;pointer-events:none;display:none;
   align-items:center;justify-content:center}
@@ -176,7 +176,11 @@ header{display:flex;align-items:center;justify-content:space-between;
       <div class="do-row"><span class="do-lbl" id="do-lbl-hip">골반</span><span class="do-val" id="do-hip" style="color:var(--orange)">--°</span></div>
       <div class="do-row"><span class="do-lbl">X</span><span class="do-val" id="do-xf" style="color:var(--green)">--°</span></div>
       <div class="do-div"></div>
-      <div class="do-row"><span class="do-lbl" id="do-lbl-spine">척추</span><span class="do-val" id="do-spine" style="color:var(--cyan)">--°</span></div>
+      <div class="do-row"><span class="do-lbl" id="do-lbl-lknee">왼무릎</span><span class="do-val" id="do-lknee" style="color:var(--cyan)">--°</span></div>
+      <div class="do-row"><span class="do-lbl" id="do-lbl-rknee">오른무릎</span><span class="do-val" id="do-rknee" style="color:#eab308">--°</span></div>
+      <div class="do-div"></div>
+      <div class="do-row"><span class="do-lbl" id="do-lbl-lhip">왼고관절</span><span class="do-val" id="do-lhip" style="color:var(--orange)">--°</span></div>
+      <div class="do-row"><span class="do-lbl" id="do-lbl-rhip">오른고관절</span><span class="do-val" id="do-rhip" style="color:#f97316">--°</span></div>
       <div class="do-div"></div>
       <div class="do-row"><span class="do-lbl" id="do-lbl-shv">어깨°/s</span><span class="do-val" id="do-shv" style="color:var(--purple)">--</span></div>
       <div class="do-row"><span class="do-lbl" id="do-lbl-hipv">골반°/s</span><span class="do-val" id="do-hipv" style="color:var(--orange)">--</span></div>
@@ -210,6 +214,11 @@ header{display:flex;align-items:center;justify-content:space-between;
       <div class="rp-title" id="rp-t-pkangv">최고 회전속도</div>
       <div class="rp-row"><span class="rp-lbl" id="rp-pksh">어깨</span><span class="rp-val" id="rv-pksh" style="color:var(--purple)">--</span></div>
       <div class="rp-row"><span class="rp-lbl" id="rp-pkhip">골반</span><span class="rp-val" id="rv-pkhip" style="color:var(--orange)">--</span></div>
+    </div>
+    <div class="rp-sec" id="jump-sec" style="display:none">
+      <div class="rp-title" id="rp-t-jump">점프</div>
+      <div class="rp-row"><span class="rp-lbl" id="rp-jump">현재</span><span class="rp-val" id="rv-jump" style="color:var(--cyan)">--</span></div>
+      <div class="rp-row"><span class="rp-lbl" id="rp-jumpPk">최고</span><span class="rp-val" id="rv-jumpPk" style="color:var(--yellow)">--</span></div>
     </div>
     <div class="rp-sec" id="joint-sec" style="display:none">
       <div class="rp-title" id="rp-t-joint">관절 각도 (굴곡)</div>
@@ -300,6 +309,8 @@ let isPaused=false;
 let angVel={sh:0,hip:0},peakAngVel={sh:0,hip:0};
 let angVelH={sh:[],hip:[]};
 let _prevA=null,_prevAt=0;
+// ── 점프 높이 (GEN/SPL) ────────────────────
+let jumpRef=null,jumpH=0,peakJumpH=0;
 // ── 녹화 ──────────────────────────────────
 let recorder=null,recChunks=[],isRec=false,_compInterval=null;
 const compCvs=document.createElement('canvas');
@@ -434,6 +445,7 @@ async function start_ana(){
   live=true;isPaused=false;
   wH=[];vH={};cur={};lastA={};lastLm=null;lastWlm=null;lastFrameT=0;
   angVel={sh:0,hip:0};angVelH={sh:[],hip:[]};_prevA=null;_prevAt=0;
+  jumpRef=null;jumpH=0;peakJumpH=0;
   fN=0;fT=performance.now();
   $('btn-main').textContent=lang==='ko'?'■ 중지':'■ Stop';
   $('btn-main').className='btn btn-main stop';
@@ -492,6 +504,7 @@ function frame(res,t){
   const a=angles3d(wlm);
   velLinear(wlm,t);computeAngVel(a,t);
   lastA=a;
+  detectJump(wlm);
   update_panel(a);update_data_ov(a);
 }
 
@@ -533,6 +546,20 @@ function angles3d(w){
 }
 
 /* ── 회전 각속도 (°/s) ── */
+/* ── 점프 높이 감지 ──────────────────────────
+   MediaPipe 세계좌표 Y: 아래 방향이 양수.
+   점프 시 고관절 Y 감소 → rise = ref - current > 0.
+   기준값은 지면에 서있을 때 천천히 갱신(EMA). */
+function detectJump(wlm){
+  const hipY=(wlm[23].y+wlm[24].y)/2;
+  if(jumpRef===null){jumpRef=hipY;return;}
+  const rise=(jumpRef-hipY)*100; // cm 단위
+  jumpH=Math.max(0,rise);
+  // 지면 판정: 5cm 미만이면 기준값 갱신
+  if(rise<5)jumpRef=jumpRef*0.97+hipY*0.03;
+  if(jumpH>peakJumpH)peakJumpH=jumpH;
+}
+
 function computeAngVel(a,t){
   if(_prevA&&_prevAt>0){
     const dt=(t-_prevAt)/1000;
@@ -578,9 +605,12 @@ function velLinear(wlm,t){
 /* draw_sk_on — 선 굵기 얇게, 관절점 1/5 크기
    liveCanvas: lw≈1, kr≈1.5
    compCanvas(녹화): lw≈3, kr≈8 (고해상도에서 가시성 유지)  */
-function draw_sk_on(c,vr,lm,wlm,forRec){
-  const lw=forRec?Math.max(2.5,vr.h/250):Math.max(1.5,vr.h/450);
-  const kr=forRec?Math.max(6,vr.h/100):Math.max(2.5,vr.h/320);
+/* s = compH/960 scale factor (2D 앱 기준). forRec 시 2D 앱처럼 고정 크기 */
+function draw_sk_on(c,vr,lm,wlm,forRec,s){
+  const _s=forRec?(s||1):1;
+  // 2D 앱 기준: 라인 3px, 관절점 반지름 8px at 960px height
+  const lw=forRec?Math.max(1.5,3*_s):Math.max(1.5,vr.h/450);
+  const kr=forRec?Math.max(3,Math.round(8*_s)):Math.max(2.5,vr.h/320);
   const px=i=>vr.x+lm[i].x*vr.w,py=i=>vr.y+lm[i].y*vr.h;
   const vi=i=>lm[i].visibility||0;
   BONES.forEach(([a,b])=>{
@@ -647,7 +677,8 @@ function update_data_ov(a){
   $('do-sh').textContent=f(a.shR);$('do-hip').textContent=f(a.hipR);
   $('do-xf').textContent=f(a.xf);
   $('do-xf').style.color=Math.abs(a.xf)>25?'var(--green)':Math.abs(a.xf)>10?'var(--yellow)':'var(--txt2)';
-  $('do-spine').textContent=(a.sp||0)+'°';
+  $('do-lknee').textContent=(a.lknee||0)+'°';$('do-rknee').textContent=(a.rknee||0)+'°';
+  $('do-lhip').textContent=(a.lhip||0)+'°';$('do-rhip').textContent=(a.rhip||0)+'°';
   $('do-shv').textContent=Math.round(angVel.sh)+'°/s';
   $('do-hipv').textContent=Math.round(angVel.hip)+'°/s';
 }
@@ -673,6 +704,9 @@ function update_panel(a){
   $('hipv-fill').style.width=Math.min(100,angVel.hip/MAX_ANG_VEL*100)+'%';
   $('rv-pksh').textContent=Math.round(peakAngVel.sh)+'°/s';
   $('rv-pkhip').textContent=Math.round(peakAngVel.hip)+'°/s';
+  // 점프 높이 (GEN/SPL)
+  const jEl=$('rv-jump');
+  if(jEl){jEl.textContent=jumpH.toFixed(1)+'cm';const pEl=$('rv-jumpPk');if(pEl)pEl.textContent=peakJumpH.toFixed(1)+'cm';}
   TRACK.filter(p=>sel.has(p.id)).forEach(p=>{
     const v=cur[p.id]||0;
     const el=$('sv-'+p.id),fi=$('sf-'+p.id);
@@ -694,7 +728,9 @@ function initCompCanvas(){
 
 function drawCompFrame(){
   if(!live)return;
-  const panW=Math.round(compW*0.28);
+  // 2D 앱 기준 s=compH/960, pw=52*s → 3D는 조금 넓게 70*s
+  const s=compH/960;
+  const panW=Math.round(70*s);
   const vidAreaW=compW-panW;
   compCtx.fillStyle='#000';compCtx.fillRect(0,0,compW,compH);
   let vr={x:0,y:0,w:vidAreaW,h:compH};
@@ -721,9 +757,11 @@ function drawCompFrame(){
     compCtx.globalAlpha=1;
   }
   // 스켈레톤
-  if(lastLm&&lastWlm){draw_sk_on(compCtx,vr,lastLm,lastWlm,true);draw_arr_on(compCtx,vr,lastLm,lastWlm);}
-  // 데이터 패널 (우측) — 그래프 포함
-  draw_comp_panel(compCtx,compW,compH,panW);
+  if(lastLm&&lastWlm){draw_sk_on(compCtx,vr,lastLm,lastWlm,true,s);draw_arr_on(compCtx,vr,lastLm,lastWlm);}
+  // 데이터 패널 (우측)
+  draw_comp_panel(compCtx,compW,compH,panW,s);
+  // 그래프 오버레이 (영상 위 우측하단 — 패널과 같은 위치)
+  draw_graph_overlay(compCtx,compW,compH,panW,s);
 }
 
 /* 녹화 영상 하단 그래프 + 최고 어깨/골반 각속도 표시 */
@@ -790,12 +828,15 @@ function draw_graph_on_comp(c,vr){
   lb(ko?'최고 골반':'Peak Hip',peakAngVel.hip,'#f97316',peakY2+Math.round(peakRowH*0.72));
 }
 
-function draw_comp_panel(c,W,H,panW){
+function draw_comp_panel(c,W,H,panW,s){
   const ko=lang==='ko';
-  const pad=Math.round(H*0.016),px=W-panW+pad;
-  const fs=Math.max(12,Math.round(H*0.022));
-  const fsS=Math.max(10,Math.round(H*0.017));
-  const fsL=Math.max(14,Math.round(H*0.028));
+  const _s=s||H/960;
+  // 2D 앱 기준 s=1@960px: 폰트, 패딩 모두 비례
+  const pad=Math.max(3,Math.round(6*_s));
+  const px=W-panW+pad;
+  const fs=Math.max(8,Math.round(14*_s));   // 본문 폰트
+  const fsS=Math.max(7,Math.round(11*_s));  // 소형 폰트
+  const fsL=Math.max(9,Math.round(15*_s));  // 강조 폰트
   c.fillStyle='rgba(9,9,15,.84)';c.fillRect(W-panW,0,panW,H);
   c.strokeStyle='rgba(255,255,255,.12)';c.lineWidth=1;
   c.beginPath();c.moveTo(W-panW,0);c.lineTo(W-panW,H);c.stroke();
@@ -836,71 +877,74 @@ function draw_comp_panel(c,W,H,panW){
   if(spJ.length&&y<H-pad*8){
     div();sec(ko?'관절 각도':'JOINTS');
     spJ.forEach(j=>{if(y>H-pad*4)return;row(ko?j.ko:j.en,(lastA[j.id]||0)+'°',j.col);});
-    y+=pad*0.5;
   }
-  // ── 패널 하단: 실시간 롤링 그래프 ──
-  // 표시 구간: -2s(과거) ~ +1s(미래빈영역), 0=지금, 그래프높이 이전의 2/3
-  const DISP_MS=3000; // 표시 총 구간(ms): -2s~+1s
-  const DATA_MS=2000; // 데이터 구간: 최근 2초
-  const NOW_X=DATA_MS/DISP_MS; // 그래프 내 "0(지금)" 위치 비율 = 2/3
-  const fsG=Math.max(8,Math.round(H*0.014));
-  const timeAxisH=Math.round(fsG*1.8);
-  const gBotY=H-pad-timeAxisH;
-  const gTopY=Math.max(y+pad,gBotY-Math.round(H*0.12)); // 높이 2/3 (0.18→0.12)
-  const gH2=gBotY-gTopY;
-  const gW2=panW-pad*2;
+}
+
+/* ── 그래프 오버레이 (영상 우측하단 위에 겹침) ──
+   꺾은선 그래프: -2,-1,0 시간축, 0=지금 */
+function draw_graph_overlay(c,W,H,panW,s){
+  const ko=lang==='ko';
+  const _s=s||H/960;
+  const DISP_MS=2000; // 표시 구간: -2s ~ 0(지금)
+  const DATA_MS=2000;
+  const pad=Math.max(3,Math.round(5*_s));
+  const fsG=Math.max(7,Math.round(10*_s));
+  const timeAxisH=Math.round(fsG*1.7);
+  const gH=Math.round(H*0.14*_s/1+20); // 그래프 높이
+  const gW=panW-pad*2;
+  const gX=W-panW+pad;
+  const gY=H-gH-timeAxisH-pad;
   const t2=lastFrameT||performance.now();
-  // 데이터 시작 = t2-2s
   const dataSt=t2-DATA_MS;
 
-  if(gH2>pad*2){
-    c.fillStyle='rgba(255,255,255,.1)';c.fillRect(px,gTopY-pad,gW2,1);
-    c.fillStyle='rgba(0,0,0,.3)';c.fillRect(px,gTopY,gW2,gH2);
-    // 수평 가이드
-    c.strokeStyle='rgba(255,255,255,.07)';c.lineWidth=1;
-    [.33,.67].forEach(r=>{c.beginPath();c.moveTo(px,gTopY+gH2*r);c.lineTo(px+gW2,gTopY+gH2*r);c.stroke();});
-    // 0(지금) 수직선
-    const xNow=px+NOW_X*gW2;
-    c.strokeStyle='rgba(255,255,255,.35)';c.lineWidth=1;c.setLineDash([3,3]);
-    c.beginPath();c.moveTo(xNow,gTopY);c.lineTo(xNow,gBotY);c.stroke();
-    c.setLineDash([]);
-    // 실시간 각속도 선 (x위치: 표시구간 내 -2~0에 매핑)
-    const lw2=Math.max(1.5,H/500);
-    const drawLP=(hist,col)=>{
-      const vis=hist.filter(e=>e.t>=dataSt);if(vis.length<2)return;
-      c.beginPath();let f=true;
-      vis.forEach(e=>{
-        // e.t를 표시구간(-2~+1s = 3000ms)에 매핑
-        const x=px+((e.t-dataSt)/DISP_MS)*gW2;
-        const y2=gTopY+gH2-Math.min(1,e.v/MAX_ANG_VEL)*gH2;
-        f?(c.moveTo(x,y2),f=false):c.lineTo(x,y2);
-      });
-      c.strokeStyle=col;c.lineWidth=lw2;c.stroke();
-    };
-    drawLP(angVelH.sh,'#a855f7cc');
-    drawLP(angVelH.hip,'#f97316cc');
-    // 범례
-    c.font=`bold ${fsG}px -apple-system,sans-serif`;c.textAlign='left';
-    c.fillStyle='#a855f7';c.fillText(ko?'어깨':'Sh',px+2,gTopY+fsG+1);
-    c.fillStyle='#f97316';c.fillText(ko?'골반':'Hip',px+2+fsG*2.6,gTopY+fsG+1);
-    c.textAlign='right';c.fillStyle='rgba(255,255,255,.22)';c.font=`${fsG}px -apple-system,sans-serif`;
-    c.fillText(MAX_ANG_VEL+'°/s',px+gW2,gTopY+fsG+1);
+  // 배경 (반투명 오버레이)
+  c.fillStyle='rgba(9,9,15,.88)';c.fillRect(W-panW,gY-pad,panW,gH+timeAxisH+pad*2);
+  c.strokeStyle='rgba(255,255,255,.15)';c.lineWidth=1;
+  c.beginPath();c.moveTo(W-panW,gY-pad);c.lineTo(W,gY-pad);c.stroke();
+  // 그래프 배경
+  c.fillStyle='rgba(255,255,255,.04)';c.fillRect(gX,gY,gW,gH);
+  // 수평 가이드
+  c.strokeStyle='rgba(255,255,255,.08)';c.lineWidth=1;
+  [.5].forEach(r=>{c.beginPath();c.moveTo(gX,gY+gH*r);c.lineTo(gX+gW,gY+gH*r);c.stroke();});
+  // 0(지금) 수직선 — 오른쪽 끝
+  c.strokeStyle='rgba(255,255,255,.3)';c.lineWidth=1;c.setLineDash([3,3]);
+  c.beginPath();c.moveTo(gX+gW,gY);c.lineTo(gX+gW,gY+gH);c.stroke();
+  c.setLineDash([]);
 
-    // X축: -2, -1, 0, +1
-    c.font=`${fsG}px -apple-system,sans-serif`;c.fillStyle='rgba(255,255,255,.4)';
-    [[-2,0/3],[-1,1/3],[0,2/3],[+1,3/3]].forEach(([label,ratio])=>{
-      const xTick=px+ratio*gW2;
-      if(label!==0&&label!==1){
-        c.strokeStyle='rgba(255,255,255,.12)';c.lineWidth=1;c.setLineDash([2,2]);
-        c.beginPath();c.moveTo(xTick,gTopY);c.lineTo(xTick,gBotY);c.stroke();c.setLineDash([]);
-      }
-      c.textAlign='center';
-      c.fillStyle=label===0?'rgba(255,255,255,.6)':'rgba(255,255,255,.35)';
-      c.fillText((label>0?'+':'')+label+'s',xTick,gBotY+timeAxisH-2);
+  // 꺾은선 그래프 (각속도 실시간)
+  const lw2=Math.max(2,Math.round(2.5*_s));
+  const drawLP=(hist,col)=>{
+    const vis=hist.filter(e=>e.t>=dataSt);if(vis.length<2)return;
+    c.beginPath();let f=true;
+    vis.forEach(e=>{
+      const x=gX+((e.t-dataSt)/DATA_MS)*gW; // 0=left(-2s), gW=right(0=now)
+      const y2=gY+gH-Math.min(1,e.v/MAX_ANG_VEL)*gH;
+      if(f){c.moveTo(x,y2);f=false;}else{c.lineTo(x,y2);}
     });
-    // "now" 레이블 생략(이미 0으로 표시)
-    c.textAlign='left';
-  }
+    c.strokeStyle=col;c.lineWidth=lw2;c.lineJoin='round';c.stroke();
+  };
+  drawLP(angVelH.sh,'#a855f7');
+  drawLP(angVelH.hip,'#f97316');
+
+  // 범례
+  c.font=`bold ${fsG}px -apple-system,sans-serif`;c.textAlign='left';
+  c.fillStyle='#a855f7';c.fillText(ko?'어깨':'Sh',gX+2,gY+fsG+1);
+  c.fillStyle='#f97316';c.fillText(ko?'골반':'Hip',gX+2+Math.round(fsG*2.5),gY+fsG+1);
+
+  // X축: -2, -1, 0 (7: +1 없음)
+  const bY=gY+gH+timeAxisH-2;
+  [[-2,0],[-1,0.5],[0,1]].forEach(([lbl,ratio])=>{
+    const xTick=gX+ratio*gW;
+    if(lbl!==0){
+      c.strokeStyle='rgba(255,255,255,.12)';c.lineWidth=1;c.setLineDash([2,2]);
+      c.beginPath();c.moveTo(xTick,gY);c.lineTo(xTick,gY+gH);c.stroke();c.setLineDash([]);
+    }
+    c.textAlign='center';
+    c.font=`${fsG}px -apple-system,sans-serif`;
+    c.fillStyle=lbl===0?'rgba(255,255,255,.65)':'rgba(255,255,255,.35)';
+    c.fillText(lbl+'s',xTick,bY);
+  });
+  c.textAlign='left';
 }
 
 /* ── 녹화 ── */
@@ -961,7 +1005,17 @@ function buildPts(){
 }
 function buildJoints(){
   const sp=SPORTS[sport];const sec=$('joint-sec');
-  if(!sp.joints.length){sec.style.display='none';return;}
+  const jumpSec=$('jump-sec');
+  // 점프 높이: GEN/SPL에서만 표시
+  const showJump=(sport==='GEN'||sport==='SPL');
+  if(jumpSec)jumpSec.style.display=showJump?'':'none';
+  if(showJump&&jumpSec){
+    const ko=lang==='ko';
+    $('rp-t-jump').textContent=ko?'점프 높이':'Jump Height';
+    $('rp-jump').textContent=ko?'현재':'Current';
+    $('rp-jumpPk').textContent=ko?'최고':'Peak';
+  }
+  if(!sp.joints.length){sec.style.display='none';$('alert-sec').style.display='none';return;}
   sec.style.display='';$('alert-sec').style.display=sp.checks.length?'':'none';
   const w=$('joint-wrap');w.innerHTML='';
   sp.joints.forEach(j=>{
@@ -992,7 +1046,8 @@ function lang_apply(){
   if(!isRec&&$('btn-rec'))$('btn-rec').textContent=ko?'⏺ 녹화':'⏺ Rec';
   $('pause-badge').textContent=ko?'⏸ 일시정지 — 👻 기준 자세 설정':'⏸ Paused — Set 👻 reference';
   $('do-lbl-sh').textContent=ko?'어깨':'Sh';$('do-lbl-hip').textContent=ko?'골반':'Hip';
-  $('do-lbl-spine').textContent=ko?'척추':'Spine';
+  $('do-lbl-lknee').textContent=ko?'왼무릎':'L.Knee';$('do-lbl-rknee').textContent=ko?'오른무릎':'R.Knee';
+  $('do-lbl-lhip').textContent=ko?'왼고관절':'L.Hip';$('do-lbl-rhip').textContent=ko?'오른고관절':'R.Hip';
   $('do-lbl-shv').textContent=ko?'어깨°/s':'Sh°/s';$('do-lbl-hipv').textContent=ko?'골반°/s':'Hip°/s';
   $('rp-t-rot').textContent=ko?'회전각 3D':'Rotation 3D';
   $('rp-sh').textContent=ko?'어깨':'Shoulder';$('rp-hip').textContent=ko?'골반':'Hip';
