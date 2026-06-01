@@ -140,6 +140,25 @@ header{display:flex;align-items:center;justify-content:space-between;
 /* 비교 모드: A 영상을 약간 투명하게 (B가 살짝 비치도록) */
 #vid-wrap.cmp-on #vid.show{opacity:0.88}
 @media(max-width:380px){#right-panel{width:64px}.btn{font-size:10px}.btn-main{padding:0 12px}}
+/* ── 프리미엄 배지 & 모달 ── */
+#prm-badge{font-size:10px;font-weight:800;padding:3px 8px;border-radius:10px;cursor:pointer;border:none;min-height:28px}
+#prm-badge.free{background:rgba(255,255,255,.1);color:rgba(255,255,255,.55)}
+#prm-badge.pro{background:linear-gradient(135deg,#FFD700,#FFA000);color:#000}
+#prm-modal{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:600;display:none;align-items:center;justify-content:center;padding:20px}
+#prm-modal.on{display:flex}
+#prm-box{background:#1A1A2E;border-radius:20px;padding:28px 24px;width:100%;max-width:340px;display:flex;flex-direction:column;gap:14px}
+#prm-title{font-size:18px;font-weight:800;text-align:center;color:#fff}
+#prm-desc{font-size:13px;color:rgba(255,255,255,.55);text-align:center;line-height:1.5}
+#prm-input{background:#16213E;border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:12px 14px;color:#fff;font-size:16px;width:100%;outline:none;text-align:center;letter-spacing:3px}
+#prm-input:focus{border-color:var(--blue)}
+#prm-input.shake{animation:prmShake .3s ease}
+@keyframes prmShake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+#prm-err{font-size:12px;color:var(--red);text-align:center;display:none;min-height:16px}
+#prm-err.on{display:block}
+.prm-btn-row{display:flex;gap:10px}
+#prm-cancel{flex:1;padding:12px;border-radius:10px;background:rgba(255,255,255,.08);color:rgba(255,255,255,.7);border:none;cursor:pointer;font-size:14px}
+#prm-confirm{flex:2;padding:12px;border-radius:10px;background:linear-gradient(135deg,#FFD700,#FFA000);color:#000;border:none;cursor:pointer;font-size:14px;font-weight:700}
+#prm-free-note{font-size:11px;color:rgba(255,255,255,.25);text-align:center;line-height:1.5}
 </style>
 </head>
 <body>
@@ -149,10 +168,26 @@ header{display:flex;align-items:center;justify-content:space-between;
     <span class="h-ver">v9</span>
   </div>
   <div class="h-right">
+    <button id="prm-badge" class="free">FREE</button>
     <button class="h-btn" id="btn-reset">↺</button>
     <button class="h-btn" id="btn-lang">KO</button>
   </div>
 </header>
+
+<!-- 프리미엄 잠금 해제 모달 -->
+<div id="prm-modal">
+  <div id="prm-box">
+    <div id="prm-title">🔒 Premium</div>
+    <div id="prm-desc">SPL · GPL · BPL · TPL 및 비교 분석은<br>프리미엄 전용입니다.<br>비밀번호를 입력하세요.</div>
+    <input id="prm-input" type="password" placeholder="비밀번호" autocomplete="off">
+    <div id="prm-err">비밀번호가 올바르지 않습니다</div>
+    <div class="prm-btn-row">
+      <button id="prm-cancel">취소</button>
+      <button id="prm-confirm">🔓 잠금 해제</button>
+    </div>
+    <div id="prm-free-note">무료 버전: 카메라/파일 분석 (General 모드)<br>프리미엄: 전체 종목 + 비교 분석</div>
+  </div>
+</div>
 <div id="sport-bar">
   <button class="sp-btn on" data-s="GEN">⚡ General</button>
   <button class="sp-btn" data-s="SPL">❄️ SPL</button>
@@ -323,8 +358,13 @@ let wH=[],vH={},cur={},lastA={};
 let lastLm=null,lastWlm=null,lastFrameT=0;
 let sel=new Set([]);
 let fN=0,fT=0,sport='GEN';
+// ── 프리미엄 ──────────────────────────────
+// SHA-256("APL2024") = 6e9a16337d5d2c2302e87aeba5cae99ee0f5aa2c5c789504285018b53d26e3c9
+const _PW_HASH='6e9a16337d5d2c2302e87aeba5cae99ee0f5aa2c5c789504285018b53d26e3c9';
+let isPremium=false;
+let _prmPendingCb=null;
 // ── 비교 분석 모드 ────────────────────────
-let compareMode=false; // 두 영상 비교 모드
+let compareMode=false; // 두 영상 비교 모드 (프리미엄 전용)
 let vid2Loaded=false;
 // ── 일시정지 ──────────────────────────────
 let isPaused=false;
@@ -350,6 +390,8 @@ const gC=$('graph-cvs')||{},gX=gC.getContext?gC.getContext('2d'):null;
 
 /* ── INIT ── */
 async function init(){
+  // localStorage 프리미엄 상태 복원
+  try{if(localStorage.getItem('apl3d_prm')==='1')_setPremium(true);}catch(e){}
   buildPts();buildRows();buildJoints();events();lang_apply();resize();
   try{
     const v=await FilesetResolver.forVisionTasks(WASM);
@@ -375,7 +417,10 @@ function events(){
   $('btn-reset').onclick=()=>{peakAngVel={sh:0,hip:0};};
 
   // ── 비교 영상 B 로드 ──────────────────────
-  $('btn-load-b').onclick=()=>$('file-input-b').click();
+  $('btn-load-b').onclick=()=>{
+    // 비교 분석 = 프리미엄 전용
+    requirePremium(()=>$('file-input-b').click());
+  };
   $('file-input-b').onchange=e=>{
     const f=e.target.files[0];if(!f)return;
     const url=URL.createObjectURL(f);
@@ -415,7 +460,23 @@ function events(){
   // 동시 재생은 ▶ 시작 버튼(start_ana)에서 처리됨
 
   $('btn-rec').onclick=()=>isRec?stopRec():startRec();
-  document.querySelectorAll('.sp-btn').forEach(b=>b.onclick=()=>setSport(b.dataset.s));
+  // 종목 버튼: GEN=무료, 나머지=프리미엄 필요
+  document.querySelectorAll('.sp-btn').forEach(b=>b.onclick=()=>{
+    const s=b.dataset.s;
+    if(s==='GEN'){setSport('GEN');return;}
+    requirePremium(()=>setSport(s));
+  });
+  // 프리미엄 모달 이벤트
+  $('prm-badge').onclick=()=>{
+    if(isPremium){_setPremium(false);compareMode=false;vid2Loaded=false;vid2.classList.remove('cmp-on');$('seek-row-b').style.display='none';if(sport!=='GEN')setSport('GEN');}
+    else{requirePremium(()=>{});}
+  };
+  $('prm-confirm').onclick=_tryPrmUnlock;
+  $('prm-cancel').onclick=()=>{$('prm-modal').classList.remove('on');_prmPendingCb=null;};
+  $('prm-input').addEventListener('keydown',e=>{
+    if(e.key==='Enter')_tryPrmUnlock();
+    if(e.key==='Escape'){$('prm-modal').classList.remove('on');_prmPendingCb=null;}
+  });
   window.addEventListener('resize',resize);
   vid.addEventListener('ended',()=>{if(live&&src==='file')stop_ana();});
 
@@ -562,7 +623,7 @@ function frame(res,t){
   const a=angles3d(wlm);
   velLinear(wlm,t);computeAngVel(a,t);
   lastA=a;
-  if(sport==='GEN'||sport==='SPL')detectJump(wlm,t);
+  if(sport==='SPL')detectJump(wlm,t);
   update_panel(a);update_data_ov(a);
 }
 
@@ -1099,8 +1160,8 @@ function buildPts(){
 function buildJoints(){
   const sp=SPORTS[sport];const sec=$('joint-sec');
   const jumpSec=$('jump-sec');
-  // 점프 높이: GEN/SPL에서만 표시
-  const showJump=(sport==='GEN'||sport==='SPL');
+  // 점프 높이: SPL에서만 표시 (프리미엄 기능)
+  const showJump=(sport==='SPL');
   if(jumpSec)jumpSec.style.display=showJump?'':'none';
   if(showJump&&jumpSec){
     const ko=lang==='ko';
@@ -1159,6 +1220,43 @@ function lang_apply(){
   document.querySelectorAll('.sp-btn').forEach(b=>{const s=b.dataset.s;b.textContent=ICONS[s]+' '+(ko?NAMES[s].ko:NAMES[s].en);});
   buildPts();buildRows();buildJoints();
 }
+/* ── 프리미엄 잠금 해제 ───────────────────────────────────────────
+   General = 무료. SPL·GPL·BPL·TPL + 비교 분석 = 프리미엄(APL2024)
+   SHA-256 검증 → localStorage 저장 → 재방문 시 자동 복원 */
+async function sha256hex(str){
+  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+function _setPremium(v){
+  isPremium=v;
+  const badge=$('prm-badge');
+  if(v){badge.textContent='PRO ⭐';badge.className='pro';try{localStorage.setItem('apl3d_prm','1');}catch(e){}}
+  else{badge.textContent='FREE';badge.className='free';}
+}
+function requirePremium(cb){
+  if(isPremium){cb();return;}
+  _prmPendingCb=cb;
+  $('prm-input').value='';
+  $('prm-err').classList.remove('on');
+  $('prm-modal').classList.add('on');
+  setTimeout(()=>$('prm-input').focus(),120);
+}
+async function _tryPrmUnlock(){
+  const pw=$('prm-input').value;
+  const h=await sha256hex(pw);
+  if(h===_PW_HASH){
+    _setPremium(true);
+    $('prm-modal').classList.remove('on');
+    $('prm-desc').textContent='SPL · GPL · BPL · TPL 및 비교 분석은\n프리미엄 전용입니다.\n비밀번호를 입력하세요.';
+    if(_prmPendingCb){_prmPendingCb();_prmPendingCb=null;}
+  }else{
+    $('prm-err').classList.add('on');
+    $('prm-input').classList.add('shake');
+    setTimeout(()=>$('prm-input').classList.remove('shake'),350);
+    $('prm-input').select();
+  }
+}
+
 function resize(){const w=$('vid-wrap');cvs.width=w.offsetWidth;cvs.height=w.offsetHeight;}
 
 /* ── 시크 바 UI 헬퍼 ── */
