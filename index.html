@@ -50,9 +50,9 @@ header{display:flex;align-items:center;justify-content:space-between;
 #load-txt{font-size:13px;color:var(--txt2);text-align:center;line-height:1.6}
 .load-sub{font-size:10px;color:rgba(255,255,255,.3)}
 #no-det{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-  font-size:13px;color:var(--txt2);pointer-events:none;display:none;text-align:center}
+  font-size:13px;color:var(--txt2);pointer-events:none;display:none;text-align:center;z-index:10}
 #no-det.on{display:block}
-#info-bar{position:absolute;top:8px;left:8px;display:flex;gap:4px;pointer-events:none;flex-wrap:wrap}
+#info-bar{position:absolute;top:8px;left:8px;display:flex;gap:4px;pointer-events:none;flex-wrap:wrap;z-index:10}
 .chip{background:rgba(0,0,0,.78);border:1px solid rgba(255,255,255,.2);
   border-radius:6px;padding:3px 7px;font-size:10px;font-weight:700}
 .chip.blue{border-color:var(--blue);color:var(--blue)}
@@ -68,14 +68,14 @@ header{display:flex;align-items:center;justify-content:space-between;
 #data-ov{position:absolute;top:6px;right:6px;
   background:rgba(0,0,0,.72);border:1px solid rgba(255,255,255,.12);
   border-radius:7px;padding:3px 5px;display:flex;flex-direction:column;gap:1px;
-  min-width:78px;pointer-events:none}
+  min-width:78px;pointer-events:none;z-index:10}
 .do-row{display:flex;align-items:center;justify-content:space-between;gap:4px}
 .do-lbl{font-size:7px;color:var(--txt2);white-space:nowrap}
 .do-val{font-size:9px;font-weight:800;font-variant-numeric:tabular-nums}
 .do-div{height:1px;background:rgba(255,255,255,.1);margin:0}
 /* 일시정지 오버레이 */
 #pause-overlay{position:absolute;inset:0;pointer-events:none;display:none;
-  align-items:center;justify-content:center}
+  align-items:center;justify-content:center;z-index:10}
 #pause-overlay.on{display:flex}
 .pause-badge{background:rgba(0,0,0,.7);border:2px solid var(--yellow);border-radius:14px;
   padding:10px 20px;font-size:14px;font-weight:700;color:var(--yellow)}
@@ -143,8 +143,8 @@ header{display:flex;align-items:center;justify-content:space-between;
 #vid2.cmp-on{display:block;opacity:1.0}   /* B: 100% 베이스 (A 뒤에서 ghost) */
 #vid{z-index:2}
 #cvs{z-index:3}
-/* A: 비교모드에서 90% — 훨씬 진하게, B가 10%만 비침 */
-#vid-wrap.cmp-on #vid.show{opacity:0.90}
+/* A: 비교모드에서 75% — B가 25% 비침 (충분히 보임) */
+#vid-wrap.cmp-on #vid.show{opacity:0.75}
 @media(max-width:380px){#right-panel{width:64px}.btn{font-size:10px}.btn-main{padding:0 12px}}
 /* ── 프리미엄 배지 & 모달 ── */
 #prm-badge{font-size:10px;font-weight:800;padding:3px 8px;border-radius:10px;cursor:pointer;border:none;min-height:28px}
@@ -171,7 +171,7 @@ header{display:flex;align-items:center;justify-content:space-between;
 <header>
   <div>
     <span class="h-logo">APL Motion Coach <span class="accent">3D</span></span>
-    <span class="h-ver">v15</span>
+    <span class="h-ver">v16</span>
   </div>
   <div class="h-right">
     <button id="prm-badge" class="free">FREE</button>
@@ -910,9 +910,9 @@ function drawCompFrame(){
     compCtx.drawImage(vid2,dx,dy,dw,dh);
     compCtx.globalAlpha=1;
   }
-  // ② A 위에(분석 영상, 90% 진하게)
+  // ② A 위에(분석 영상, 75% 진하게 — B 25% 비침)
   if(vid.readyState>=2){
-    compCtx.globalAlpha=compareMode?0.90:1.0;
+    compCtx.globalAlpha=compareMode?0.75:1.0;
     compCtx.drawImage(vid,dx,dy,dw,dh);
     compCtx.globalAlpha=1;
   }
@@ -927,19 +927,20 @@ function drawCompFrame(){
    분석 화면 패널과 동일한 글자 크기, 수직 중앙 정렬 */
 function draw_comp_panel(c,W,H,s){
   const ko=lang==='ko';
-  // 분석 화면 패널 CSS 기준(rp-lbl:9px, rp-val:10px)을 녹화 캔버스 크기로 환산
-  // 1280px canvas → ~640px 표시 시: 2배 스케일 필요 → 18-22px
+  // 폰에서 앱 패널(rp-lbl:9px, rp-val:10px)과 유사하게 보이도록 크게 설정
+  // 1280px 녹화→390px 폰 축소율 ~0.305 → 목표 9px = canvas 약 29px = W*0.023
   const panW=Math.round(W*0.16); // 우측 16%
   const pad=Math.round(W*0.008);
   const px=W-panW+pad;
-  const fsS=Math.round(W*0.013);  // 레이블 (1280px→16px)
-  const fsL=Math.round(W*0.015);  // 값 (1280px→19px)
-  const rowH=Math.round(fsL*1.9); // 행 높이
+  const fsS=Math.round(W*0.022);  // 레이블 — 앱 패널 9px에 대응
+  const fsL=Math.round(W*0.025);  // 값    — 앱 패널 10px에 대응
+  const rowH=Math.round(fsL*1.8); // 행 높이
 
   // 전체 콘텐츠 높이 계산 → 수직 중앙 배치
   const spJ=SPORTS[sport].joints;
-  const nRows=3+2+2+spJ.length; // 회전(3)+자세(2)+속도(2)+관절
-  const totalH=nRows*rowH+pad*6;
+  const jumpRows=(sport==='SPL')?2:0; // 점프 높이 2행 (SPL 전용)
+  const nRows=3+2+2+spJ.length+jumpRows; // 회전(3)+자세(2)+속도(2)+관절+점프
+  const totalH=nRows*rowH+pad*7;
   let y=Math.max(pad*2,(H-totalH)/2);
 
   // 반투명 패널 배경
@@ -977,6 +978,12 @@ function draw_comp_panel(c,W,H,s){
   row(ko?'어깨°/s':'Sh°/s',Math.round(angVel.sh)+'°/s','#a855f7');
   row(ko?'골반°/s':'Hip°/s',Math.round(angVel.hip)+'°/s','#f97316');
   if(spJ.length){y+=pad;div();spJ.forEach(j=>{row(ko?j.ko:j.en,(lastA[j.id]||0)+'°',j.col);});}
+  // 점프 높이 (SPL 전용)
+  if(sport==='SPL'){
+    y+=pad;div();
+    row(ko?'점프 현재':'Jump Now',jumpH.toFixed(1)+'cm','#06b6d4');
+    row(ko?'점프 최고':'Jump Peak',peakJumpH.toFixed(1)+'cm','#eab308');
+  }
 }
 
 
