@@ -60,6 +60,10 @@ header{display:flex;align-items:center;justify-content:space-between;
 .chip.green{border-color:var(--green);color:var(--green)}
 .chip.yellow{border-color:var(--yellow);color:var(--yellow)}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+/* 저장 대기 버튼 */
+#save-chip{border-color:#22c55e;color:#22c55e;background:rgba(34,197,94,.2);
+  cursor:pointer;pointer-events:auto;animation:savePulse 1.2s ease-in-out infinite}
+@keyframes savePulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.75;transform:scale(0.97)}}
 /* 실시간 데이터 오버레이 — 최소 크기 */
 #data-ov{position:absolute;top:6px;right:6px;
   background:rgba(0,0,0,.72);border:1px solid rgba(255,255,255,.12);
@@ -132,13 +136,15 @@ header{display:flex;align-items:center;justify-content:space-between;
 .btn-cmp{background:rgba(34,197,94,.15);color:var(--green);border:1px solid rgba(34,197,94,.3);font-size:10px;height:30px;padding:0 8px;white-space:nowrap;border-radius:8px;cursor:pointer;flex-shrink:0}
 .btn-cmp.on{background:var(--green);color:#fff}
 .btn-cmp:active{opacity:.6}
-/* 비교 영상 오버레이: vid2 아래, vid 위, canvas 맨 위 */
-#vid2{position:absolute;width:100%;height:100%;object-fit:contain;opacity:0;display:none;pointer-events:none;z-index:1}
-#vid2.cmp-on{display:block;opacity:0.40}
-#vid{z-index:2}
+/* 비교 모드: A(vid)=분석 영상(진하게 100%), B(vid2)=비교 ghost(흐리게, A 위 오버레이)
+   z-order: vid(1) < vid2(2) < canvas(3)
+   — A가 도드라지게: A 100%, B ghost 60% */
+#vid2{position:absolute;width:100%;height:100%;object-fit:contain;opacity:0;display:none;pointer-events:none;z-index:2}
+#vid2.cmp-on{display:block;opacity:0.60}   /* B: 흐리게(비교 ghost, A 위 오버레이) */
+#vid{z-index:1}
 #cvs{z-index:3}
-/* 비교 모드: A 영상을 약간 투명하게 (B가 살짝 비치도록) */
-#vid-wrap.cmp-on #vid.show{opacity:0.88}
+/* A: 비교모드에서도 100% 불투명 */
+#vid-wrap.cmp-on #vid.show{opacity:1.0}
 @media(max-width:380px){#right-panel{width:64px}.btn{font-size:10px}.btn-main{padding:0 12px}}
 /* ── 프리미엄 배지 & 모달 ── */
 #prm-badge{font-size:10px;font-weight:800;padding:3px 8px;border-radius:10px;cursor:pointer;border:none;min-height:28px}
@@ -214,6 +220,7 @@ header{display:flex;align-items:center;justify-content:space-between;
       <div class="chip" id="chip-fps">-- fps</div>
       <div class="chip blue">3D</div>
       <div class="chip red" id="chip-rec" style="display:none">● REC</div>
+      <div class="chip" id="save-chip" style="display:none" id="save-chip">📱 탭해서 저장</div>
       <div class="chip green" id="chip-ghost" style="display:none">👻 기준</div>
       <div class="chip yellow" id="chip-pause" style="display:none">⏸ PAUSE</div>
     </div>
@@ -380,6 +387,7 @@ let jumpTakeoffT=0,jumpTakeoffY=0;
 let _prevHipY=null,_prevHipT=0,_hipVel=0;
 // ── 녹화 ──────────────────────────────────
 let recorder=null,recChunks=[],isRec=false,_compInterval=null;
+let _pendingSaveBlob=null,_pendingSaveName='';
 const compCvs=document.createElement('canvas');
 const compCtx=compCvs.getContext('2d');
 let compW=1280,compH=720;
@@ -426,11 +434,12 @@ function events(){
     const url=URL.createObjectURL(f);
     vid2.src=url;vid2.load();
     vid2Loaded=true;compareMode=true;
-    vid2.classList.add('cmp-on'); // 40% opacity 오버레이
+    vid2.classList.add('cmp-on');
+    $('vid-wrap').classList.add('cmp-on'); // 즉시 오버레이 활성 (슬라이더로 동시에 보기)
     $('seek-row-b').style.display='flex';
-    // 비교 모드 활성: A 영상도 표시되도록 보장
+    showSeekWrap(true); // 슬라이더 영역 표시 보장
     if(vid.src||vid.srcObject) vid.classList.add('show');
-    setRefMsg((lang==='ko')?`B 로드 완료. 슬라이더로 A·B 맞추고 ▶ 시작`:`B loaded. Align A·B then ▶ Start`,'var(--green)');
+    setRefMsg((lang==='ko')?'B 로드 완료. 슬라이더로 A·B 맞추고 ▶ 시작':'B loaded. Align A·B then ▶ Start','var(--green)');
   };
   vid2.onloadedmetadata=()=>{
     $('seek-bar-b').value=0;
@@ -891,89 +900,24 @@ function drawCompFrame(){
     else{dw=compH*vAr;dx=(compW-dw)/2;}
     vr={x:dx,y:dy,w:dw,h:dh};
   }
-  // ① 비교 영상 B (배경, 40% 불투명도)
-  if(compareMode&&vid2Loaded&&vid2.readyState>=2){
-    compCtx.globalAlpha=0.40;
-    compCtx.drawImage(vid2,dx,dy,dw,dh);
+  // ① A 먼저(분석 영상, 진하게 100%)
+  if(vid.readyState>=2){
+    compCtx.globalAlpha=1.0;
+    compCtx.drawImage(vid,dx,dy,dw,dh);
     compCtx.globalAlpha=1;
   }
-  // ② 현재 분석 영상 A (88%: B가 살짝 비치도록)
-  if(vid.readyState>=2){
-    compCtx.globalAlpha=compareMode?0.88:1.0;
-    compCtx.drawImage(vid,dx,dy,dw,dh);
+  // ② B 위에(비교 ghost, 흐리게 60%)
+  if(compareMode&&vid2Loaded&&vid2.readyState>=2){
+    compCtx.globalAlpha=0.60;
+    compCtx.drawImage(vid2,dx,dy,dw,dh);
     compCtx.globalAlpha=1;
   }
   // 스켈레톤 (전체 영상 위에)
   if(lastLm&&lastWlm){draw_sk_on(compCtx,vr,lastLm,lastWlm,true,s);draw_arr_on(compCtx,vr,lastLm,lastWlm);}
-  // 데이터 패널 — 우측에 오버레이 (영상과 분리 X)
+  // 데이터 패널 — 우측에 오버레이
   draw_comp_panel(compCtx,compW,compH,s);
-  // 그래프 오버레이 — 우측 하단에 오버레이
-  draw_graph_overlay(compCtx,compW,compH,s);
 }
 
-/* 녹화 영상 하단 그래프 + 최고 어깨/골반 각속도 표시 */
-function draw_graph_on_comp(c,vr){
-  const ko=lang==='ko';
-  // 높이: 기본 그래프 + 최고속도 2행
-  const fs=Math.max(10,Math.round(vr.h*0.022));
-  const peakRowH=Math.round(fs*1.7);  // 최고속도 행 높이
-  const graphH=Math.round(vr.h*0.16); // 그래프 영역
-  const totalH=graphH+peakRowH*2+Math.round(vr.h*0.01);
-  const gY=vr.y+vr.h-totalH;
-  const graphY=gY;
-  const peakY1=graphY+graphH;
-  const peakY2=peakY1+peakRowH;
-
-  // 배경 전체
-  c.fillStyle='rgba(9,9,15,.85)';c.fillRect(vr.x,gY,vr.w,totalH);
-  // 그래프 내부 가이드 선
-  c.strokeStyle='rgba(255,255,255,.07)';c.lineWidth=1;
-  [.33,.67].forEach(r=>{c.beginPath();c.moveTo(vr.x,graphY+graphH*r);c.lineTo(vr.x+vr.w,graphY+graphH*r);c.stroke();});
-  // 그래프와 최고속도 구분선
-  c.strokeStyle='rgba(255,255,255,.15)';
-  c.beginPath();c.moveTo(vr.x,peakY1);c.lineTo(vr.x+vr.w,peakY1);c.stroke();
-
-  const t=lastFrameT||performance.now(),st=t-GRAPH_MS;
-  const lw=Math.max(1.5,vr.h/400);
-  const drawLine=(hist,col)=>{
-    const vis=hist.filter(e=>e.t>=st);if(vis.length<2)return;
-    c.beginPath();let f=true;
-    vis.forEach(e=>{
-      const x=vr.x+((e.t-st)/GRAPH_MS)*vr.w;
-      const y=graphY+graphH-Math.min(1,e.v/MAX_ANG_VEL)*graphH;
-      f?(c.moveTo(x,y),f=false):c.lineTo(x,y);
-    });
-    c.strokeStyle=col;c.lineWidth=lw;c.stroke();
-  };
-  drawLine(angVelH.sh,'#a855f7cc');
-  drawLine(angVelH.hip,'#f97316cc');
-
-  // 피크 수평 점선
-  const drawPeakLine=(val,col)=>{
-    const py=graphY+graphH-Math.min(1,val/MAX_ANG_VEL)*graphH;
-    c.setLineDash([4,4]);c.beginPath();c.moveTo(vr.x,py);c.lineTo(vr.x+vr.w,py);
-    c.strokeStyle=col.replace('cc','55');c.lineWidth=1;c.stroke();c.setLineDash([]);
-  };
-  if(peakAngVel.sh>0)drawPeakLine(peakAngVel.sh,'#a855f7cc');
-  if(peakAngVel.hip>0)drawPeakLine(peakAngVel.hip,'#f97316cc');
-
-  // 그래프 상단 범례
-  c.font=`bold ${Math.round(fs*0.8)}px -apple-system,sans-serif`;c.textAlign='left';
-  c.fillStyle='#a855f7';c.fillText(ko?'어깨':'Sh',vr.x+5,graphY+Math.round(fs*0.9)+2);
-  c.fillStyle='#f97316';c.fillText(ko?'골반':'Hip',vr.x+5+Math.round(fs*2.2),graphY+Math.round(fs*0.9)+2);
-  c.textAlign='right';c.fillStyle='rgba(255,255,255,.28)';
-  c.fillText(MAX_ANG_VEL+'°/s',vr.x+vr.w-4,graphY+Math.round(fs*0.9)+2);
-
-  // 최고 어깨 행
-  const lb=(txt,val,col,y)=>{
-    c.textAlign='left';c.font=`${Math.round(fs*0.85)}px -apple-system,sans-serif`;
-    c.fillStyle='rgba(255,255,255,.45)';c.fillText(txt,vr.x+6,y);
-    c.textAlign='right';c.font=`bold ${fs}px -apple-system,sans-serif`;
-    c.fillStyle=col;c.fillText(Math.round(val)+'°/s',vr.x+vr.w-5,y);
-  };
-  lb(ko?'최고 어깨':'Peak Sh',peakAngVel.sh,'#a855f7',peakY1+Math.round(peakRowH*0.72));
-  lb(ko?'최고 골반':'Peak Hip',peakAngVel.hip,'#f97316',peakY2+Math.round(peakRowH*0.72));
-}
 
 /* ── 녹화 데이터 패널 ── 영상 우측에 반투명 오버레이 ──
    분석 화면 패널과 동일한 글자 크기, 수직 중앙 정렬 */
@@ -1031,75 +975,6 @@ function draw_comp_panel(c,W,H,s){
   if(spJ.length){y+=pad;div();spJ.forEach(j=>{row(ko?j.ko:j.en,(lastA[j.id]||0)+'°',j.col);});}
 }
 
-/* ── 그래프 오버레이 — 2D앱처럼 영상 하단 우측에 겹침 ──
-   가로: 패널의 2배, 세로: 이전 1.5배, 글자: 패널과 동일 크기 */
-function draw_graph_overlay(c,W,H,s){
-  const ko=lang==='ko';
-  const DATA_MS=2000;
-  const panW=Math.round(W*0.16);
-  const pad=Math.round(W*0.006);
-  // 패널과 동일 글자 크기
-  const fsG=Math.round(W*0.013);
-  const timeAxisH=Math.round(fsG*2);
-  // 가로 2배(panW*2), 세로 1.5배
-  const gW=panW*2-pad*2;
-  const gH=Math.round(H*0.14);  // 세로 약 1.5배
-  const gX=W-gW-pad;
-  const gY=H-gH-timeAxisH-pad;
-  const t2=lastFrameT||performance.now();
-  const dataSt=t2-DATA_MS;
-
-  // 반투명 배경 오버레이
-  c.fillStyle='rgba(9,9,15,.85)';c.fillRect(gX-pad,gY-pad,gW+pad*2,gH+timeAxisH+pad*2);
-  c.strokeStyle='rgba(255,255,255,.15)';c.lineWidth=1;
-  c.beginPath();c.moveTo(gX-pad,gY-pad);c.lineTo(gX+gW+pad,gY-pad);c.stroke();
-  // 그래프 배경
-  c.fillStyle='rgba(255,255,255,.05)';c.fillRect(gX,gY,gW,gH);
-  // 수평 가이드선 2개
-  c.strokeStyle='rgba(255,255,255,.1)';c.lineWidth=1;
-  [.33,.67].forEach(r=>{c.beginPath();c.moveTo(gX,gY+gH*r);c.lineTo(gX+gW,gY+gH*r);c.stroke();});
-  // 0(지금) 수직선
-  c.strokeStyle='rgba(255,255,255,.35)';c.lineWidth=Math.max(1,pad*0.4);c.setLineDash([4,4]);
-  c.beginPath();c.moveTo(gX+gW,gY);c.lineTo(gX+gW,gY+gH);c.stroke();
-  c.setLineDash([]);
-
-  // 꺾은선 그래프 — lineWidth 패널 글자에 비례
-  const lw2=Math.max(2,Math.round(fsG*0.18));
-  const drawLP=(hist,col)=>{
-    const vis=hist.filter(e=>e.t>=dataSt);if(vis.length<2)return;
-    c.beginPath();let f2=true;
-    vis.forEach(e=>{
-      const x=gX+((e.t-dataSt)/DATA_MS)*gW;
-      const y2=gY+gH-Math.min(1,e.v/MAX_ANG_VEL)*gH;
-      if(f2){c.moveTo(x,y2);f2=false;}else{c.lineTo(x,y2);}
-    });
-    c.strokeStyle=col;c.lineWidth=lw2;c.lineJoin='round';c.lineCap='round';c.stroke();
-  };
-  drawLP(angVelH.sh,'#a855f7');
-  drawLP(angVelH.hip,'#f97316');
-
-  // 범례 (패널과 동일 폰트 크기)
-  c.font=`bold ${fsG}px -apple-system,sans-serif`;c.textAlign='left';
-  c.fillStyle='#a855f7';c.fillText(ko?'어깨':'Sh',gX+2,gY+fsG+2);
-  c.fillStyle='#f97316';c.fillText(ko?'골반':'Hip',gX+fsG*3.5,gY+fsG+2);
-  c.textAlign='right';c.fillStyle='rgba(255,255,255,.3)';
-  c.fillText(MAX_ANG_VEL+'°/s',gX+gW,gY+fsG+2);
-
-  // X축: -2s, -1s, 0
-  const bY=gY+gH+timeAxisH-pad*0.5;
-  [[-2,0],[-1,0.5],[0,1]].forEach(([lbl,ratio])=>{
-    const xTick=gX+ratio*gW;
-    if(lbl!==0){
-      c.strokeStyle='rgba(255,255,255,.15)';c.lineWidth=1;c.setLineDash([3,3]);
-      c.beginPath();c.moveTo(xTick,gY);c.lineTo(xTick,gY+gH);c.stroke();c.setLineDash([]);
-    }
-    c.textAlign='center';
-    c.font=`${fsG}px -apple-system,sans-serif`;
-    c.fillStyle=lbl===0?'rgba(255,255,255,.7)':'rgba(255,255,255,.4)';
-    c.fillText(lbl===0?'0(now)':lbl+'s',xTick,bY);
-  });
-  c.textAlign='left';
-}
 
 /* ── 녹화 ── */
 function getMimeType(){
@@ -1121,16 +996,25 @@ function startRec(){
       const blob=new Blob(recChunks,{type});
       const ext=type.includes('webm')?'webm':'mp4';
       const fname=`APL_3D_${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.${ext}`;
-      if(navigator.share&&navigator.canShare){
-        const file=new File([blob],fname,{type});
-        if(navigator.canShare({files:[file]})){
-          try{await navigator.share({files:[file],title:'APL Motion 3D'});return;}
-          catch(e){if(e.name==='AbortError')return;}
+      // iOS Web Share API — 반드시 사용자 탭 제스처 필요
+      // → 즉시 시도(중지 버튼 누른 경우), 실패 시 "탭해서 저장" 칩 표시
+      const doShare=async()=>{
+        if(navigator.share&&navigator.canShare){
+          const file=new File([blob],fname,{type});
+          if(navigator.canShare({files:[file]})){
+            try{await navigator.share({files:[file],title:'APL Motion 3D'});hideSaveChip();return true;}
+            catch(e){if(e.name==='AbortError'){hideSaveChip();return true;}}
+          }
         }
+        return false;
+      };
+      // Web Share 시도 (사용자 제스처 컨텍스트일 때만 성공)
+      // 실패 시 항상 save chip → 탭 후 사진 앱으로 저장
+      const ok=await doShare();
+      if(!ok){
+        _pendingSaveBlob=blob;_pendingSaveName=fname;
+        showSaveChip();
       }
-      const url=URL.createObjectURL(blob);
-      const a=document.createElement('a');a.href=url;a.download=fname;a.click();
-      setTimeout(()=>URL.revokeObjectURL(url),5000);
     };
     recorder.start(200);
     _compInterval=setInterval(drawCompFrame,33);
@@ -1140,6 +1024,7 @@ function startRec(){
 }
 function stopRec(){
   if(_compInterval){clearInterval(_compInterval);_compInterval=null;}
+  recChunks=[];
   if(recorder&&recorder.state!=='inactive')recorder.stop();
   isRec=false;$('chip-rec').style.display='none';
   $('btn-rec').textContent=lang==='ko'?'⏺ 녹화':'⏺ Rec';$('btn-rec').className='btn btn-rec';
@@ -1219,6 +1104,10 @@ function lang_apply(){
   const NAMES={GEN:{ko:'일반',en:'General'},SPL:{ko:'SPL 스케이팅',en:'Skating'},GPL:{ko:'골프',en:'Golf'},BPL:{ko:'야구/농구',en:'Baseball/Bball'},TPL:{ko:'테니스',en:'Tennis'}};
   document.querySelectorAll('.sp-btn').forEach(b=>{const s=b.dataset.s;b.textContent=ICONS[s]+' '+(ko?NAMES[s].ko:NAMES[s].en);});
   buildPts();buildRows();buildJoints();
+  // ref-msg 언어 동기화 (B 로드 완료 메시지)
+  if(vid2Loaded&&!live){
+    setRefMsg(ko?'B 로드 완료. 슬라이더로 A·B 맞추고 ▶ 시작':'B loaded. Align A·B then ▶ Start','var(--green)');
+  }
 }
 /* ── 프리미엄 잠금 해제 ───────────────────────────────────────────
    General = 무료. SPL·GPL·BPL·TPL + 비교 분석 = 프리미엄(APL2024)
@@ -1256,6 +1145,36 @@ async function _tryPrmUnlock(){
     $('prm-input').select();
   }
 }
+
+/* ── 저장 칩 (사용자 탭 제스처 후 Photos 저장) ── */
+function showSaveChip(){
+  const chip=$('save-chip');
+  chip.textContent=lang==='ko'?'📱 탭해서 사진 저장':'📱 Tap to save to Photos';
+  chip.style.display='';
+}
+function hideSaveChip(){
+  $('save-chip').style.display='none';
+  _pendingSaveBlob=null;_pendingSaveName='';
+}
+// save-chip 탭: 사용자 제스처 → Web Share API 성공
+document.addEventListener('click',async e=>{
+  if(!e.target.closest('#save-chip'))return;
+  if(!_pendingSaveBlob)return;
+  const blob=_pendingSaveBlob,fname=_pendingSaveName;
+  const type=blob.type;
+  if(navigator.share&&navigator.canShare){
+    const file=new File([blob],fname,{type});
+    if(navigator.canShare({files:[file]})){
+      try{await navigator.share({files:[file],title:'APL Motion 3D'});hideSaveChip();return;}
+      catch(e){if(e.name==='AbortError'){hideSaveChip();return;}}
+    }
+  }
+  // 폴백: 직접 다운로드
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=fname;a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),5000);
+  hideSaveChip();
+});
 
 function resize(){const w=$('vid-wrap');cvs.width=w.offsetWidth;cvs.height=w.offsetHeight;}
 
