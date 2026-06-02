@@ -171,7 +171,7 @@ header{display:flex;align-items:center;justify-content:space-between;
 <header>
   <div>
     <span class="h-logo">APL Motion Coach <span class="accent">3D</span></span>
-    <span class="h-ver">v29</span>
+    <span class="h-ver">v30</span>
   </div>
   <div class="h-right">
     <button id="prm-badge" class="free">FREE</button>
@@ -693,7 +693,7 @@ function frame(res,t){
   const a=angles3d(wlm);
   velLinear(wlm,t);computeAngVel(a,t);
   lastA=a;
-  detectJump(wlm,t); // 모든 종목에서 점프 감지
+  detectJump(lm,t); // 모든 종목에서 점프 감지 (screen 좌표 사용)
   update_panel(a);update_data_ov(a);
 }
 
@@ -739,14 +739,14 @@ function angles3d(w){
    현재값(jumpH): 발이 떨어지는 모든 상황 실시간 측정 (달리기 포함, 필터 없음)
    최고값(peakJumpH): 현재까지 측정된 최대값 (↺로 초기화)
    hip 기반 directH만 사용 — timeH·300ms필터·currentJumpPeakH 모두 제거 */
-function detectJump(wlm,t){
+function detectJump(lm,t){
   if(!t)t=lastFrameT||performance.now();
-  const la=wlm[27],ra=wlm[28];
+  const la=lm[27],ra=lm[28]; // screen 좌표 (Y↓: 아래=큰값, 점프하면 감소)
   const hasL=la&&(la.visibility||0)>0.3;
   const hasR=ra&&(ra.visibility||0)>0.3;
   // 두 발 중 낮은 쪽(max Y): 한 발만 들릴 때 false 이륙 방지
-  const ankleGnd=hasL&&hasR?Math.max(la.y,ra.y):hasL?la.y:hasR?ra.y:(wlm[25].y+wlm[26].y)/2;
-  const hipY=(wlm[23].y+wlm[24].y)/2;
+  const ankleGnd=hasL&&hasR?Math.max(la.y,ra.y):hasL?la.y:hasR?ra.y:(lm[25].y+lm[26].y)/2;
+  const hipY=(lm[23].y+lm[24].y)/2; // screen hip Y: 점프하면 감소 → directH 정상 측정
 
   if(jumpRef===null){
     jumpRef=ankleGnd;_hipRef=hipY;
