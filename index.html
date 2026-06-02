@@ -36,6 +36,12 @@ header{display:flex;align-items:center;justify-content:space-between;
 .sp-btn[data-s="GPL"].on{background:rgba(34,197,94,.25);border-color:#22c55e;color:#22c55e}
 .sp-btn[data-s="BPL"].on{background:rgba(249,115,22,.25);border-color:#f97316;color:#f97316}
 .sp-btn[data-s="TPL"].on{background:rgba(168,85,247,.25);border-color:#a855f7;color:#a855f7}
+.sp-btn[data-s="JMP"].on{background:rgba(255,215,0,.25);border-color:#FFD700;color:#FFD700}
+.jmp-sub{display:flex;align-items:center;justify-content:center;
+  background:rgba(255,255,255,.06);color:var(--txt2);border:1px solid var(--border);
+  border-radius:6px;padding:2px 0;font-size:9px;font-weight:700;cursor:pointer;flex:1}
+.jmp-sub.on{background:rgba(255,215,0,.2);border-color:#FFD700;color:#FFD700}
+.jmp-sub:active{opacity:.6}
 #app-body{flex:1;display:flex;overflow:hidden;min-height:0}
 #vid-wrap{flex:1;position:relative;background:#000;overflow:hidden}
 #vid{position:absolute;width:100%;height:100%;object-fit:contain;opacity:0}
@@ -171,7 +177,7 @@ header{display:flex;align-items:center;justify-content:space-between;
 <header>
   <div>
     <span class="h-logo">APL Motion Coach <span class="accent">3D</span></span>
-    <span class="h-ver">v30</span>
+    <span class="h-ver">v31</span>
   </div>
   <div class="h-right">
     <button id="prm-badge" class="free">FREE</button>
@@ -186,7 +192,7 @@ header{display:flex;align-items:center;justify-content:space-between;
 <div id="prm-modal">
   <div id="prm-box">
     <div id="prm-title">🔒 Premium</div>
-    <div id="prm-desc">SPL · GPL · BPL · TPL 및 비교 분석은<br>프리미엄 전용입니다.<br>비밀번호를 입력하세요.</div>
+    <div id="prm-desc">SPL · GPL · BPL · TPL · JMP 및 비교 분석은<br>프리미엄 전용입니다.<br>비밀번호를 입력하세요.</div>
     <input id="prm-input" type="password" placeholder="비밀번호" autocomplete="off">
     <div id="prm-err">비밀번호가 올바르지 않습니다</div>
     <div class="prm-btn-row">
@@ -202,6 +208,7 @@ header{display:flex;align-items:center;justify-content:space-between;
   <button class="sp-btn" data-s="GPL">⛳ GPL</button>
   <button class="sp-btn" data-s="BPL">⚾ BPL</button>
   <button class="sp-btn" data-s="TPL">🎾 TPL</button>
+  <button class="sp-btn" data-s="JMP">🦘 JMP</button>
 </div>
 <div id="app-body">
   <div id="vid-wrap">
@@ -272,9 +279,22 @@ header{display:flex;align-items:center;justify-content:space-between;
       <div class="rp-row"><span class="rp-lbl" id="rp-pkhip">골반</span><span class="rp-val" id="rv-pkhip" style="color:var(--orange)">--</span></div>
     </div>
     <div class="rp-sec" id="jump-sec" style="display:none">
-      <div class="rp-title" id="rp-t-jump">점프</div>
-      <div class="rp-row"><span class="rp-lbl" id="rp-jump">현재</span><span class="rp-val" id="rv-jump" style="color:var(--cyan)">--</span></div>
-      <div class="rp-row"><span class="rp-lbl" id="rp-jumpPk">최고</span><span class="rp-val" id="rv-jumpPk" style="color:var(--yellow)">--</span></div>
+      <div class="rp-title" id="rp-t-jump">점프 분석</div>
+      <!-- 서브모드: 제자리 / 도움닫기 -->
+      <div style="display:flex;gap:3px;margin-bottom:4px">
+        <button class="jmp-sub on" id="btn-jmp-standing">제자리</button>
+        <button class="jmp-sub" id="btn-jmp-approach">도움닫기</button>
+      </div>
+      <!-- 비행시간 기반 높이 -->
+      <div class="rp-row"><span class="rp-lbl" id="rp-jump">높이</span><span class="rp-val" id="rv-jump" style="color:#FFD700">--cm</span></div>
+      <div class="rp-row"><span class="rp-lbl" id="rp-jumpPk">최고높이</span><span class="rp-val" id="rv-jumpPk" style="color:#FFD700">--cm</span></div>
+      <!-- 체공시간 -->
+      <div class="rp-row"><span class="rp-lbl" id="rp-ftt">체공시간</span><span class="rp-val" id="rv-ftt" style="color:var(--cyan)">--s</span></div>
+      <div class="rp-row"><span class="rp-lbl" id="rp-ftt-pk">최장시간</span><span class="rp-val" id="rv-ftt-pk" style="color:var(--cyan)">--s</span></div>
+      <!-- 도약속도 -->
+      <div class="rp-row"><span class="rp-lbl" id="rp-ftv">도약속도</span><span class="rp-val" id="rv-ftv" style="color:var(--green)">--m/s</span></div>
+      <!-- 촬영속도 (슬로모션 배율 표시) -->
+      <div class="rp-row"><span class="rp-lbl" id="rp-fts">촬영속도</span><span class="rp-val" id="rv-fts" style="color:rgba(255,255,255,.35);font-size:8px">일반</span></div>
     </div>
     <div class="rp-sec" id="joint-sec" style="display:none">
       <div class="rp-title" id="rp-t-joint">관절 각도 (굴곡)</div>
@@ -360,6 +380,8 @@ const SPORTS={
   TPL:{ko:'테니스',en:'Tennis',col:'#a855f7',
     joints:[{id:'lhip',ko:'왼고관절',en:'L.Hip',col:'#f97316'},{id:'rhip',ko:'오른고관절',en:'R.Hip',col:'#eab308'},{id:'lelbow',ko:'왼팔꿈치',en:'L.Elbow',col:'#06b6d4'},{id:'relbow',ko:'오른팔꿈치',en:'R.Elbow',col:'#a855f7'}],
     checks:[{ko_ok:'X-factor 양호',ko_warn:'상체 회전 확인',ko_bad:'회전 부족',en_ok:'X-factor OK',en_warn:'Check rotation',en_bad:'Too small',fn:a=>Math.abs(a.xf)>=20?'ok':Math.abs(a.xf)>=10?'warn':'bad'}]},
+  // ── JMP: 점프 전용 분석 (비행시간 기반) ──
+  JMP:{ko:'점프분석',en:'Jump',col:'#FFD700',joints:[],checks:[]},
 };
 
 /* ── 상태 ── */
@@ -392,6 +414,10 @@ let jumpTakeoffT=0,jumpTakeoffHipY=0;
 let _hipRef=0;           // GROUND hip Y EMA (CoM 기준점)
 let refLegNorm=0.35;    // 이륙 전 발목-고관절 거리 고정값 (스케일 안정화)
 let slowMoFactor=1.0;   // 슬로모션 배율: 1=일반, 4=120fps슬로, 8=240fps슬로
+// ── JMP 전용 분석 ──────────────────────────
+let flightTimeSec=0,peakFlightTimeSec=0; // 체공시간 (s, 슬로모션 보정 포함)
+let takeoffSpeed=0;                      // 도약속도 (m/s) = g×T/2
+let jumpSubMode='standing';              // 'standing'|'approach'
 // ── 녹화 ──────────────────────────────────
 let recorder=null,recChunks=[],isRec=false,_compInterval=null;
 let _pendingSaveBlob=null,_pendingSaveName='';
@@ -450,7 +476,10 @@ function events(){
   $('spd-sel').onchange=()=>{if(vid.src||vid.srcObject)vid.playbackRate=+$('spd-sel').value;};
   $('slomo-sel').onchange=()=>{slowMoFactor=+$('slomo-sel').value;};
   $('btn-lang').onclick=()=>{lang=lang==='ko'?'en':'ko';lang_apply();};
-  $('btn-reset').onclick=()=>{peakAngVel={sh:0,hip:0};peakJumpH=0;};
+  $('btn-reset').onclick=()=>{peakAngVel={sh:0,hip:0};peakJumpH=0;peakFlightTimeSec=0;flightTimeSec=0;takeoffSpeed=0;};
+  // JMP 서브모드 버튼
+  $('btn-jmp-standing').onclick=()=>{jumpSubMode='standing';$('btn-jmp-standing').classList.add('on');$('btn-jmp-approach').classList.remove('on');};
+  $('btn-jmp-approach').onclick=()=>{jumpSubMode='approach';$('btn-jmp-approach').classList.add('on');$('btn-jmp-standing').classList.remove('on');};
   // 신장 설정
   $('btn-height').onclick=()=>{
     const ko=lang==='ko';
@@ -632,6 +661,7 @@ async function start_ana(){
   angVel={sh:0,hip:0};angVelH={sh:[],hip:[]};_prevA=null;_prevAt=0;
   jumpRef=null;jumpH=0;peakJumpH=0;jumpState='GROUND';
   jumpTakeoffT=0;jumpTakeoffHipY=0;_hipRef=0;refLegNorm=0.35;
+  flightTimeSec=0;peakFlightTimeSec=0;takeoffSpeed=0;
   fN=0;fT=performance.now();
   $('btn-main').textContent=lang==='ko'?'■ 중지':'■ Stop';
   $('btn-main').className='btn btn-main stop';
@@ -693,7 +723,7 @@ function frame(res,t){
   const a=angles3d(wlm);
   velLinear(wlm,t);computeAngVel(a,t);
   lastA=a;
-  detectJump(lm,t); // 모든 종목에서 점프 감지 (screen 좌표 사용)
+  if(sport==='JMP')detectJump(lm,t); // JMP 종목 전용 점프 감지
   update_panel(a);update_data_ov(a);
 }
 
@@ -735,54 +765,65 @@ function angles3d(w){
 }
 
 /* ── 회전 각속도 (°/s) ── */
-/* ── 점프 높이 ── [V29] 단순화 — 모든 체공 실시간 표시
-   현재값(jumpH): 발이 떨어지는 모든 상황 실시간 측정 (달리기 포함, 필터 없음)
-   최고값(peakJumpH): 현재까지 측정된 최대값 (↺로 초기화)
-   hip 기반 directH만 사용 — timeH·300ms필터·currentJumpPeakH 모두 제거 */
+/* ── JMP 점프 분석 ── [V31] 발목 감지 + 비행시간 물리 계산
+   높이: h = g×(T/2)²/2  (자세·고관절 무관, 가장 정확)
+   속도: v₀ = g×T/2
+   감지: max(la.y,ra.y) screen 발목 — 한 발 들림 false positive 방지
+   슬로모션: realMs = airMs × 재생배율 / slowMoFactor
+   제자리 모드: 모든 체공 집계
+   도움닫기 모드: 300ms 이상 체공만 peakJumpH·peakFlightTimeSec 갱신 */
 function detectJump(lm,t){
   if(!t)t=lastFrameT||performance.now();
-  const la=lm[27],ra=lm[28]; // screen 좌표 (Y↓: 아래=큰값, 점프하면 감소)
+  const la=lm[27],ra=lm[28];
   const hasL=la&&(la.visibility||0)>0.3;
   const hasR=ra&&(ra.visibility||0)>0.3;
-  // 두 발 중 낮은 쪽(max Y): 한 발만 들릴 때 false 이륙 방지
+  // 두 발 중 낮은 쪽(max Y): 한 발만 들릴 때 AIRBORNE 오작동 방지
   const ankleGnd=hasL&&hasR?Math.max(la.y,ra.y):hasL?la.y:hasR?ra.y:(lm[25].y+lm[26].y)/2;
-  const hipY=(lm[23].y+lm[24].y)/2; // screen hip Y: 점프하면 감소 → directH 정상 측정
 
-  if(jumpRef===null){
-    jumpRef=ankleGnd;_hipRef=hipY;
-    refLegNorm=Math.max(0.25,ankleGnd-hipY);
-    return;
-  }
+  if(jumpRef===null){jumpRef=ankleGnd;return;}
+
+  const pr=src==='camera'?1.0:(+($('spd-sel').value)||1.0);
+  const slowMo=src==='camera'?1.0:slowMoFactor;
 
   switch(jumpState){
     case'GROUND':{
-      jumpRef=jumpRef*0.97+ankleGnd*0.03;
-      _hipRef=_hipRef*0.97+hipY*0.03;
+      jumpRef=jumpRef*0.97+ankleGnd*0.03; // 빠른 EMA: 카메라 접근·착지 후 적응
       jumpH=0;
-      const lg=ankleGnd-hipY;
-      if(lg>0.20)refLegNorm=refLegNorm*0.97+lg*0.03;
-      // 이륙: 두 발 모두 3% 이상 위 (달리기 포함 모든 체공 감지)
-      if(ankleGnd<jumpRef-0.030){
-        jumpTakeoffT=t;jumpTakeoffHipY=_hipRef;jumpState='AIRBORNE';
-      }
+      // 이륙: 두 발 모두 3% 이상 위 (max ankle 기준)
+      if(ankleGnd<jumpRef-0.030){jumpTakeoffT=t;jumpState='AIRBORNE';}
       break;
     }
     case'AIRBORNE':{
       const airMs=t-jumpTakeoffT;
-      const legLen=(userHeight/100)*0.53;
-      const mPerNorm=legLen/Math.max(0.25,refLegNorm);
-      // hip 기반 위치 측정만 사용 (CoM 근사, 단순·직관적)
-      jumpH=Math.min(120,Math.max(0,Math.round((jumpTakeoffHipY-hipY)*mPerNorm*100)));
-      if(jumpH>peakJumpH)peakJumpH=jumpH; // 최고값: 현재값 최대 실시간 갱신
-      if(ankleGnd>=jumpRef-0.07&&airMs>=150){jumpState='LAND';jumpH=0;}
-      if(airMs>2500){jumpRef=ankleGnd;_hipRef=hipY;jumpState='GROUND';}
+      const realMs=airMs*pr/slowMo;   // 실제 물리 비행시간 (ms, 슬로모션 보정)
+      const realSec=realMs/1000;
+      const isApproach=jumpSubMode==='approach';
+
+      // 실시간 체공시간 업데이트
+      flightTimeSec=realSec;
+
+      // 비행시간 기반 높이: h=g(T/2)²/2 (착지 시 정확, 체공 중 과소평가)
+      const h2=realSec/2;
+      jumpH=Math.min(300,Math.round(9.81*h2*h2/2*100));
+
+      // 도약속도 실시간: v=g×T/2
+      takeoffSpeed=+(9.81*realSec/2).toFixed(2);
+
+      // peakJumpH: 도움닫기는 300ms 이상만 (달리기 스텝 필터)
+      const validForPeak=!isApproach||realMs>=300;
+      if(validForPeak&&jumpH>peakJumpH)peakJumpH=jumpH;
+
+      // 착지 감지: 두 발 중 낮은 쪽이 기준 7% 이내 복귀 + 최소 100ms
+      if(ankleGnd>=jumpRef-0.07&&airMs>=100){
+        if(validForPeak&&realSec>peakFlightTimeSec)peakFlightTimeSec=realSec;
+        jumpRef=jumpRef*0.7+ankleGnd*0.3; // 착지 위치로 기준 빠른 갱신
+        jumpState='LAND';jumpH=0;
+      }
+      if(airMs>3500){jumpRef=ankleGnd;jumpState='GROUND';} // 3.5초 안전 리셋
       break;
     }
     case'LAND':{
-      jumpH=0;
-      jumpRef=jumpRef*0.7+ankleGnd*0.3;
-      _hipRef=_hipRef*0.7+hipY*0.3;
-      jumpState='GROUND';
+      jumpH=0;jumpState='GROUND';
       break;
     }
   }
@@ -912,9 +953,15 @@ function update_panel(a){
   $('hipv-fill').style.width=Math.min(100,angVel.hip/MAX_ANG_VEL*100)+'%';
   $('rv-pksh').textContent=Math.round(peakAngVel.sh)+'°/s';
   $('rv-pkhip').textContent=Math.round(peakAngVel.hip)+'°/s';
-  // 점프 높이 (GEN/SPL)
-  const jEl=$('rv-jump');
-  if(jEl){jEl.textContent=jumpH.toFixed(1)+'cm';const pEl=$('rv-jumpPk');if(pEl)pEl.textContent=peakJumpH.toFixed(1)+'cm';}
+  // JMP 전용 패널 업데이트
+  if(sport==='JMP'){
+    const ko=lang==='ko';
+    const jEl=$('rv-jump');if(jEl)jEl.textContent=jumpH>0?jumpH+'cm':'--cm';
+    const pEl=$('rv-jumpPk');if(pEl)pEl.textContent=peakJumpH>0?peakJumpH+'cm':'--cm';
+    const fttEl=$('rv-ftt');if(fttEl)fttEl.textContent=flightTimeSec>0?flightTimeSec.toFixed(3)+'s':'--s';
+    const fttPkEl=$('rv-ftt-pk');if(fttPkEl)fttPkEl.textContent=peakFlightTimeSec>0?peakFlightTimeSec.toFixed(3)+'s':'--s';
+    const ftvEl=$('rv-ftv');if(ftvEl)ftvEl.textContent=takeoffSpeed>0?takeoffSpeed.toFixed(2)+'m/s':'--m/s';
+  }
   TRACK.filter(p=>sel.has(p.id)).forEach(p=>{
     const v=cur[p.id]||0;
     const el=$('sv-'+p.id),fi=$('sf-'+p.id);
@@ -996,9 +1043,13 @@ function draw_comp_panel(c,W,H,s){
   items.push({lbl:ko?'어깨°/s':'Sh°/s',val:Math.round(angVel.sh)+'',col:'#a855f7'});
   items.push({lbl:ko?'골반°/s':'Hip°/s',val:Math.round(angVel.hip)+'',col:'#f97316'});
   if(spJ.length){items.push(null);spJ.forEach(j=>items.push({lbl:ko?j.ko:j.en,val:(lastA[j.id]||0)+'°',col:j.col}));}
-  // 점프 최고 — 모든 종목 표시
-  items.push(null);
-  items.push({lbl:ko?'점프최고':'Peak Jump',val:peakJumpH>0?peakJumpH.toFixed(1)+'cm':'--',col:'#06b6d4'});
+  // 점프 데이터 — JMP 종목만 상세 표시
+  if(sport==='JMP'){
+    items.push(null);
+    items.push({lbl:ko?'점프높이':'Jump H',val:peakJumpH>0?peakJumpH+'cm':'--',col:'#FFD700'});
+    items.push({lbl:ko?'체공시간':'Flight T',val:peakFlightTimeSec>0?peakFlightTimeSec.toFixed(3)+'s':'--',col:'#06b6d4'});
+    items.push({lbl:ko?'도약속도':'Takeoff V',val:takeoffSpeed>0?takeoffSpeed.toFixed(2)+'m/s':'--',col:'#22c55e'});
+  }
 
   // ── 박스 높이 계산 ──
   const nRows=items.filter(i=>i!==null).length;
@@ -1131,13 +1182,22 @@ function buildPts(){
 function buildJoints(){
   const sp=SPORTS[sport];const sec=$('joint-sec');
   const jumpSec=$('jump-sec');
-  // 점프 높이: GEN·SPL 모두 표시 (감지는 SPL에서만 동작)
+  // JMP 종목에서만 점프 분석 패널 표시
   if(jumpSec){
-    jumpSec.style.display='block'; // 항상 명시적으로 표시
-    const ko=lang==='ko';
-    $('rp-t-jump').textContent=ko?'점프 높이':'Jump Height';
-    $('rp-jump').textContent=ko?'현재':'Current';
-    $('rp-jumpPk').textContent=ko?'최고':'Peak';
+    const isJMP=sport==='JMP';
+    jumpSec.style.display=isJMP?'':'none';
+    if(isJMP){
+      const ko=lang==='ko';
+      $('rp-t-jump').textContent=ko?'점프 분석':'Jump Analysis';
+      $('rp-jump').textContent=ko?'높이':'Height';
+      $('rp-jumpPk').textContent=ko?'최고높이':'Peak H';
+      const sb=$('btn-jmp-standing');const ab=$('btn-jmp-approach');
+      if(sb)sb.textContent=ko?'제자리':'Standing';
+      if(ab)ab.textContent=ko?'도움닫기':'Approach';
+      // 현재 슬로모션 배율 표시
+      const ftsEl=$('rv-fts');
+      if(ftsEl){const m={'1':ko?'일반':'Normal','4':'120fps','8':'240fps'};ftsEl.textContent=m[String(slowMoFactor)]||slowMoFactor+'×';}
+    }
   }
   if(!sp.joints.length){sec.style.display='none';$('alert-sec').style.display='none';return;}
   sec.style.display='';$('alert-sec').style.display=sp.checks.length?'':'none';
@@ -1185,8 +1245,8 @@ function lang_apply(){
   $('rp-t-pts').textContent=ko?'추적 포인트':'Track Points';
   $('rp-t-alert').textContent=ko?'분석 피드백':'Feedback';
   $('no-det').textContent=ko?'📷 전신이 보이도록 서 주세요':'📷 Stand so full body is visible';
-  const ICONS={'GEN':'⚡','SPL':'❄️','GPL':'⛳','BPL':'⚾','TPL':'🎾'};
-  const NAMES={GEN:{ko:'일반',en:'General'},SPL:{ko:'SPL 스케이팅',en:'Skating'},GPL:{ko:'골프',en:'Golf'},BPL:{ko:'야구/농구',en:'Baseball/Bball'},TPL:{ko:'테니스',en:'Tennis'}};
+  const ICONS={'GEN':'⚡','SPL':'❄️','GPL':'⛳','BPL':'⚾','TPL':'🎾','JMP':'🦘'};
+  const NAMES={GEN:{ko:'일반',en:'General'},SPL:{ko:'SPL 스케이팅',en:'Skating'},GPL:{ko:'골프',en:'Golf'},BPL:{ko:'야구/농구',en:'Baseball/Bball'},TPL:{ko:'테니스',en:'Tennis'},JMP:{ko:'점프분석',en:'Jump'}};
   document.querySelectorAll('.sp-btn').forEach(b=>{const s=b.dataset.s;b.textContent=ICONS[s]+' '+(ko?NAMES[s].ko:NAMES[s].en);});
   buildPts();buildRows();buildJoints();
   // ref-msg 언어 동기화 (B 로드 완료 메시지)
