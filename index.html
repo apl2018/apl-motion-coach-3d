@@ -13,16 +13,20 @@
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 body{background:var(--bg);color:var(--txt);font-family:-apple-system,'Helvetica Neue',sans-serif;
-  height:100svh;display:flex;flex-direction:column;overflow:hidden}
+  height:100svh;display:flex;flex-direction:column;overflow:hidden;
+  touch-action:manipulation} /* 더블탭 줌 방지 (iOS 10+) */
 header{display:flex;align-items:center;justify-content:space-between;
-  padding:5px 12px;background:var(--card);border-bottom:1px solid var(--border);
-  flex-shrink:0;min-height:38px}
+  padding:2px 10px;background:var(--card);border-bottom:1px solid var(--border);
+  flex-shrink:0;min-height:48px} /* 44px 버튼 포함할 높이 */
 .h-logo{font-size:11px;font-weight:900;letter-spacing:.3px}
 .h-logo .accent{color:var(--sport);transition:color .3s}
 .h-ver{font-size:9px;opacity:.4;margin-left:4px}
 .h-right{display:flex;gap:5px}
 .h-btn{background:rgba(255,255,255,.08);color:var(--txt2);border:1px solid var(--border);
-  border-radius:8px;padding:5px 9px;font-size:11px;cursor:pointer;min-height:30px}
+  border-radius:8px;padding:5px 9px;font-size:11px;cursor:pointer;
+  min-height:44px;min-width:44px;  /* iOS 권장 터치 최소 크기 44px */
+  touch-action:manipulation;       /* 더블탭줌 방지 + 즉각 탭 반응 */
+  user-select:none;-webkit-user-select:none}
 .h-btn:active{opacity:.6}
 #sport-bar{display:flex;gap:4px;padding:4px 10px;background:var(--card);
   border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto;
@@ -148,6 +152,7 @@ header{display:flex;align-items:center;justify-content:space-between;
 #vid2{position:absolute;width:100%;height:100%;object-fit:contain;opacity:0;display:none;pointer-events:none;z-index:2}
 #vid2.cmp-on{display:block;opacity:0.60;mix-blend-mode:screen}   /* B: screen blend — 어두운 배경 투명, A 밝기 유지 */
 #vid{z-index:1}
+video{touch-action:none} /* 더블탭 줌 방지: video 요소는 iOS에서 자체 줌 동작 무시 */
 #cvs{z-index:3}
 /* A: 비교모드에서도 항상 100% */
 #vid-wrap.cmp-on #vid.show{opacity:1.0}
@@ -177,7 +182,7 @@ header{display:flex;align-items:center;justify-content:space-between;
 <header>
   <div>
     <span class="h-logo">APL Motion Coach <span class="accent">3D</span></span>
-    <span class="h-ver">v32</span>
+    <span class="h-ver">v34</span>
   </div>
   <div class="h-right">
     <button id="prm-badge" class="free">FREE</button>
@@ -473,7 +478,14 @@ function events(){
   $('spd-sel').onchange=()=>{if(vid.src||vid.srcObject)vid.playbackRate=+$('spd-sel').value;};
   $('slomo-sel').onchange=()=>{slowMoFactor=+$('slomo-sel').value;};
   $('btn-lang').onclick=()=>{lang=lang==='ko'?'en':'ko';lang_apply();};
-  $('btn-reset').onclick=()=>{peakAngVel={sh:0,hip:0};peakJumpH=0;peakFlightTimeSec=0;flightTimeSec=0;takeoffSpeed=0;};
+  // 더블탭 줌 방지 (iOS 10+ user-scalable=no 무시 대응, video 요소 포함)
+  document.addEventListener('dblclick',e=>e.preventDefault(),{passive:false});
+  // btn-reset: touchstart 우선(즉각 반응) + ghost click 방지
+  const _doReset=()=>{peakAngVel={sh:0,hip:0};peakJumpH=0;peakFlightTimeSec=0;flightTimeSec=0;takeoffSpeed=0;};
+  let _rstTouch=false;
+  $('btn-reset').addEventListener('touchstart',e=>{e.preventDefault();_rstTouch=true;_doReset();},{passive:false});
+  $('btn-reset').addEventListener('touchend',e=>{e.preventDefault();setTimeout(()=>{_rstTouch=false;},400);},{passive:false});
+  $('btn-reset').onclick=()=>{if(!_rstTouch)_doReset();};
   // JMP 서브모드 버튼 (null 체크 포함)
   const _jmpS=$('btn-jmp-standing'),_jmpA=$('btn-jmp-approach');
   if(_jmpS)_jmpS.onclick=()=>{jumpSubMode='standing';_jmpS.classList.add('on');if(_jmpA)_jmpA.classList.remove('on');};
@@ -800,19 +812,25 @@ function detectJump(lm,t){
       jumpH=Math.min(300,Math.round(9.81*h2*h2/2*100));
       takeoffSpeed=+(9.81*realSec/2).toFixed(2);
 
-      // 착지 감지: 발목이 이륙 시작 위치로 복귀 + 최소 150ms
-      // ← 기존 "jumpRef-0.07" 대신 jumpTakeoffAnkle 사용 → 즉시 착지 오판 방지
-      if(ankleGnd>=jumpTakeoffAnkle&&airMs>=150){
-        const validJump=minDrop>=0.040; // 4% 이상 하강 = 진짜 점프
-        const validForPeak=validJump&&(!isApproach||realMs>=300);
-        if(validForPeak){
-          if(jumpH>peakJumpH)peakJumpH=jumpH;
-          if(realSec>peakFlightTimeSec)peakFlightTimeSec=realSec;
+      // 착지 감지: 발목이 지면 기준 1% 이내 복귀
+      // jumpRef-0.010 사용 → 실제 접지에 매우 가까운 시점 감지
+      // (jumpTakeoffAnkle 기준은 너무 일찍 착지 판정 → x8 슬로 20cm 오류 원인)
+      if(ankleGnd>=jumpRef-0.010){
+        if(airMs>=50){ // 최소 50ms (1-2 프레임 노이즈 방지)
+          // 유효 점프: 트리거 레벨에서 5% 이상 더 하강해야 진짜 점프
+          // (도움닫기 스텝 3-4%만 하강 → 필터, 실제 점프 15%+ → 통과)
+          const validJump=minDrop>=0.050;
+          const validForPeak=validJump&&(!isApproach||realMs>=500);
+          if(validForPeak){
+            if(jumpH>peakJumpH)peakJumpH=jumpH;
+            if(realSec>peakFlightTimeSec)peakFlightTimeSec=realSec;
+          }
         }
+        // 항상 상태 리셋 (스텝 간 AIRBORNE 누적 방지 → 300cm 오류 해결)
         jumpRef=jumpRef*0.7+ankleGnd*0.3;
         jumpState='LAND';jumpH=0;
       }
-      if(airMs>4000){jumpRef=ankleGnd;jumpState='GROUND';}
+      if(realMs>4000){jumpRef=ankleGnd;jumpState='GROUND';}  /* 슬로모션 보정 포함 타임아웃 */
       break;
     }
     case'LAND':{
