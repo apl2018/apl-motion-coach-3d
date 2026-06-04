@@ -74,21 +74,17 @@ header{display:flex;align-items:center;justify-content:space-between;
 #save-chip{border-color:#22c55e;color:#22c55e;background:rgba(34,197,94,.2);
   cursor:pointer;pointer-events:auto;animation:savePulse 1.2s ease-in-out infinite}
 @keyframes savePulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.75;transform:scale(0.97)}}
-/* 실시간 데이터 오버레이 — 최소 크기 */
-#data-ov{position:absolute;top:6px;right:6px;
-  background:rgba(0,0,0,.72);border:1px solid rgba(255,255,255,.12);
-  border-radius:7px;padding:3px 5px;display:flex;flex-direction:column;gap:1px;
-  min-width:78px;pointer-events:none;z-index:10}
-.do-row{display:flex;align-items:center;justify-content:space-between;gap:4px}
-.do-lbl{font-size:7px;color:var(--txt2);white-space:nowrap}
-.do-val{font-size:9px;font-weight:800;font-variant-numeric:tabular-nums}
-.do-div{height:1px;background:rgba(255,255,255,.1);margin:0}
+/* data-ov 제거 (v39) */
 /* 일시정지 오버레이 */
 #pause-overlay{position:absolute;inset:0;pointer-events:none;display:none;
   align-items:center;justify-content:center;z-index:10}
 #pause-overlay.on{display:flex}
 .pause-badge{background:rgba(0,0,0,.7);border:2px solid var(--yellow);border-radius:14px;
   padding:10px 20px;font-size:14px;font-weight:700;color:var(--yellow)}
+/* 왼쪽 패널 (비교 모드 B 영상 데이터) */
+#left-panel{width:80px;background:var(--card);border-right:1px solid var(--border);
+  display:none;flex-direction:column;overflow-y:auto;flex-shrink:0;scrollbar-width:none}
+#left-panel::-webkit-scrollbar{display:none}
 /* 오른쪽 패널 */
 #right-panel{width:80px;background:var(--card);border-left:1px solid var(--border);
   display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;scrollbar-width:none}
@@ -182,7 +178,7 @@ video{touch-action:none} /* 더블탭 줌 방지: video 요소는 iOS에서 자�
 <header>
   <div>
     <span class="h-logo">APL Motion Coach <span class="accent">3D</span></span>
-    <span class="h-ver">v37</span>
+    <span class="h-ver">v39</span>
   </div>
   <div class="h-right">
     <button id="prm-badge" class="free">FREE</button>
@@ -208,13 +204,41 @@ video{touch-action:none} /* 더블탭 줌 방지: video 요소는 iOS에서 자�
 </div>
 <div id="sport-bar">
   <button class="sp-btn on" data-s="GEN">⚡ General</button>
-  <button class="sp-btn" data-s="SPL">❄️ SPL</button>
+  <button class="sp-btn" data-s="SPL">🧊 SPL</button>
   <button class="sp-btn" data-s="GPL">⛳ GPL</button>
-  <button class="sp-btn" data-s="BPL">⚾ BPL</button>
+  <button class="sp-btn" data-s="BPL">⚾🏀 BPL</button>
   <button class="sp-btn" data-s="TPL">🎾 TPL</button>
-  <button class="sp-btn" data-s="JMP">🦘 JMP</button>
+  <button class="sp-btn" data-s="JMP">🦘 Jump</button>
 </div>
 <div id="app-body">
+  <!-- 왼쪽 패널: 비교 모드 B 영상 데이터 (compareMode 시 표시) -->
+  <div id="left-panel">
+    <div class="rp-sec" style="text-align:center">
+      <div class="rp-title" style="color:var(--green);font-size:8px">🅱 영상</div>
+    </div>
+    <div class="rp-sec">
+      <div class="rp-title" id="b-rp-t-rot">회전각 3D</div>
+      <div class="rp-row"><span class="rp-lbl" id="b-rp-sh">어깨</span><span class="rp-val" id="b-rv-sh" style="color:var(--purple)">--°</span></div>
+      <div class="rp-row"><span class="rp-lbl" id="b-rp-hip">골반</span><span class="rp-val" id="b-rv-hip" style="color:var(--orange)">--°</span></div>
+      <div class="rp-row"><span class="rp-lbl">X-factor</span><span class="rp-val" id="b-rv-xf" style="color:var(--green)">--°</span></div>
+    </div>
+    <div class="rp-sec">
+      <div class="rp-title" id="b-rp-t-angv">회전 속도(°/s)</div>
+      <div class="rp-row"><span class="rp-lbl" id="b-rp-shv">어깨</span><span class="rp-val" id="b-rv-shv" style="color:var(--purple)">--</span></div>
+      <div class="spd-bar"><div class="spd-fill" id="b-shv-fill" style="background:var(--purple)"></div></div>
+      <div class="rp-row" style="margin-top:3px"><span class="rp-lbl" id="b-rp-hipv">골반</span><span class="rp-val" id="b-rv-hipv" style="color:var(--orange)">--</span></div>
+      <div class="spd-bar"><div class="spd-fill" id="b-hipv-fill" style="background:var(--orange)"></div></div>
+    </div>
+    <div class="rp-sec">
+      <div class="rp-title" id="b-rp-t-pkangv">최고 회전속도</div>
+      <div class="rp-row"><span class="rp-lbl" id="b-rp-pksh">어깨</span><span class="rp-val" id="b-rv-pksh" style="color:var(--purple)">--°/s</span></div>
+      <div class="rp-row"><span class="rp-lbl" id="b-rp-pkhip">골반</span><span class="rp-val" id="b-rv-pkhip" style="color:var(--orange)">--°/s</span></div>
+    </div>
+    <div class="rp-sec" id="b-joint-sec" style="display:none">
+      <div class="rp-title" id="b-rp-t-joint">관절 각도</div>
+      <div id="b-joint-wrap"></div>
+    </div>
+  </div>
   <div id="vid-wrap">
     <video id="vid2" muted playsinline></video>
     <video id="vid" autoplay muted playsinline></video>
@@ -237,21 +261,7 @@ video{touch-action:none} /* 더블탭 줌 방지: video 요소는 iOS에서 자�
       <div class="chip green" id="chip-ghost" style="display:none">👻 기준</div>
       <div class="chip yellow" id="chip-pause" style="display:none">⏸ PAUSE</div>
     </div>
-    <!-- 실시간 데이터 오버레이 -->
-    <div id="data-ov">
-      <div class="do-row"><span class="do-lbl" id="do-lbl-sh">어깨</span><span class="do-val" id="do-sh" style="color:var(--purple)">--°</span></div>
-      <div class="do-row"><span class="do-lbl" id="do-lbl-hip">골반</span><span class="do-val" id="do-hip" style="color:var(--orange)">--°</span></div>
-      <div class="do-row"><span class="do-lbl">X</span><span class="do-val" id="do-xf" style="color:var(--green)">--°</span></div>
-      <div class="do-div"></div>
-      <div class="do-row"><span class="do-lbl" id="do-lbl-lknee">왼무릎</span><span class="do-val" id="do-lknee" style="color:var(--cyan)">--°</span></div>
-      <div class="do-row"><span class="do-lbl" id="do-lbl-rknee">오른무릎</span><span class="do-val" id="do-rknee" style="color:#eab308">--°</span></div>
-      <div class="do-div"></div>
-      <div class="do-row"><span class="do-lbl" id="do-lbl-lhip">왼고관절</span><span class="do-val" id="do-lhip" style="color:var(--orange)">--°</span></div>
-      <div class="do-row"><span class="do-lbl" id="do-lbl-rhip">오른고관절</span><span class="do-val" id="do-rhip" style="color:#f97316">--°</span></div>
-      <div class="do-div"></div>
-      <div class="do-row"><span class="do-lbl" id="do-lbl-shv">어깨°/s</span><span class="do-val" id="do-shv" style="color:var(--purple)">--</span></div>
-      <div class="do-row"><span class="do-lbl" id="do-lbl-hipv">골반°/s</span><span class="do-val" id="do-hipv" style="color:var(--orange)">--</span></div>
-    </div>
+
   </div>
   <!-- 오른쪽 패널 -->
   <div id="right-panel">
@@ -341,7 +351,6 @@ video{touch-action:none} /* 더블탭 줌 방지: video 요소는 iOS에서 자�
   <button class="btn btn-src" id="btn-file">📁</button>
   <span id="file-name"></span>
   <input type="file" id="file-input" accept="video/*" style="display:none">
-  <select id="spd-sel"><option value="1">1×</option><option value="0.5">½×</option><option value="0.25">¼×</option><option value="0.125">⅛×</option></select>
   <select id="slomo-sel" title="슬로모션 배율 설정 (아이폰 슬로모션 영상 점프 정확도 향상)"><option value="1">🎬 일반</option><option value="8">🐢 ×8슬로</option></select>
   <button class="btn btn-rec" id="btn-rec">⏺ 녹화</button>
   <div class="sep"></div>
@@ -405,6 +414,12 @@ let precisionMode=false; // Full 모델 (정확도 향상, 속도 감소)
 // ── 비교 분석 모드 ────────────────────────
 let compareMode=false; // 두 영상 비교 모드 (프리미엄 전용)
 let vid2Loaded=false;
+// ── B 영상 전용 분석 (비교 모드) ─────────
+let detB=null; // B 영상용 MediaPipe (IMAGE mode)
+let lastLm_b=null,lastWlm_b=null,lastA_b={};
+let angVel_b={sh:0,hip:0},peakAngVel_b={sh:0,hip:0};
+let angVelH_b={sh:[],hip:[]};
+let _prevA_b=null,_prevAt_b=0;
 // ── 일시정지 ──────────────────────────────
 let isPaused=false;
 // ── 회전 속도 ─────────────────────────────
@@ -462,6 +477,21 @@ async function _loadModel(){
   }catch(e){$('load-txt').textContent='❌ 로드 실패: '+e.message;}
 }
 
+async function _loadModelB(){
+  if(detB)return; // 이미 로드됨
+  try{
+    const v=await FilesetResolver.forVisionTasks(WASM);
+    const modelName=precisionMode?'pose_landmarker_full':'pose_landmarker_lite';
+    const modelUrl=`https://storage.googleapis.com/mediapipe-models/pose_landmarker/${modelName}/float16/1/${modelName}.task`;
+    detB=await PoseLandmarker.createFromOptions(v,{
+      baseOptions:{modelAssetPath:modelUrl,delegate:'GPU'},
+      runningMode:'IMAGE',numPoses:1,  // IMAGE mode: 프레임 독립 분석, 트래킹 불필요
+      minPoseDetectionConfidence:.5,minPosePresenceConfidence:.5,
+      outputSegmentationMasks:false,
+    });
+  }catch(e){console.warn('B 모델 로드 실패:',e);detB=null;}
+}
+
 function _updateModelBtn(){
   const btn=$('btn-model');if(!btn)return;
   btn.textContent=precisionMode?'🎯':'⚡';
@@ -475,7 +505,6 @@ function events(){
   $('btn-file').onclick=()=>$('file-input').click();
   $('file-input').onchange=e=>{const f=e.target.files[0];if(!f)return;setMode('file',f);$('file-name').textContent=f.name;};
   $('btn-main').onclick=()=>live?stop_ana():start_ana();
-  $('spd-sel').onchange=()=>{if(vid.src||vid.srcObject)vid.playbackRate=+$('spd-sel').value;};
   $('slomo-sel').onchange=()=>{slowMoFactor=+$('slomo-sel').value;};
   $('btn-lang').onclick=()=>{lang=lang==='ko'?'en':'ko';lang_apply();};
   // 더블탭 줌 방지 (iOS 10+ user-scalable=no 무시 대응, video 요소 포함)
@@ -483,7 +512,6 @@ function events(){
   // btn-reset: peak 데이터 초기화 + 화면 즉시 갱신
   // pointerdown = 터치/마우스 모두 즉각 반응 (touchstart보다 안정적)
   const _resetUI=()=>{
-    // 분석 중지 상태에서도 화면 값 즉시 갱신 (렌더 루프 없을 때도 동작)
     const na='--';
     $('rv-pksh').textContent=na+'°/s';
     $('rv-pkhip').textContent=na+'°/s';
@@ -492,9 +520,15 @@ function events(){
     const _s=(id,v)=>{const e=$(id);if(e)e.textContent=v;};
     _s('rv-jumpPk',na+'cm');_s('rv-ftt-pk',na+'s');
     _s('rv-ftv',na+'m/s');_s('rv-ftt',na+'s');_s('rv-jump',na+'cm');
+    // B 패널도 초기화
+    _s('b-rv-sh',na+'°');_s('b-rv-hip',na+'°');_s('b-rv-xf',na+'°');
+    _s('b-rv-shv',na);_s('b-rv-hipv',na);
+    _s('b-rv-pksh',na+'°/s');_s('b-rv-pkhip',na+'°/s');
+    $('b-shv-fill').style.width='0%';$('b-hipv-fill').style.width='0%';
   };
   const _doReset=()=>{
-    peakAngVel={sh:0,hip:0};peakJumpH=0;peakFlightTimeSec=0;
+    peakAngVel={sh:0,hip:0};peakAngVel_b={sh:0,hip:0};
+    peakJumpH=0;peakFlightTimeSec=0;
     flightTimeSec=0;takeoffSpeed=0;
     _resetUI();
   };
@@ -536,10 +570,13 @@ function events(){
     vid2.src=url;vid2.load();
     vid2Loaded=true;compareMode=true;
     vid2.classList.add('cmp-on');
-    $('vid-wrap').classList.add('cmp-on'); // 즉시 오버레이 활성 (슬라이더로 동시에 보기)
+    $('vid-wrap').classList.add('cmp-on'); // 즉시 오버레이 활성
     $('seek-row-b').style.display='flex';
-    showSeekWrap(true); // 슬라이더 영역 표시 보장
+    showSeekWrap(true);
     if(vid.src||vid.srcObject) vid.classList.add('show');
+    // 왼쪽 패널 표시 + B 모델 로드 (백그라운드)
+    $('left-panel').style.display='flex';
+    _loadModelB();
     setRefMsg((lang==='ko')?'B 로드 완료. 슬라이더로 A·B 맞추고 ▶ 시작':'B loaded. Align A·B then ▶ Start','var(--green)');
   };
   vid2.onloadedmetadata=()=>{
@@ -578,7 +615,7 @@ function events(){
   });
   // 프리미엄 모달 이벤트
   $('prm-badge').onclick=()=>{
-    if(isPremium){_setPremium(false);compareMode=false;vid2Loaded=false;vid2.classList.remove('cmp-on');$('seek-row-b').style.display='none';if(sport!=='GEN')setSport('GEN');}
+    if(isPremium){_setPremium(false);compareMode=false;vid2Loaded=false;vid2.classList.remove('cmp-on');$('seek-row-b').style.display='none';$('left-panel').style.display='none';if(sport!=='GEN')setSport('GEN');}
     else{requirePremium(()=>{});}
   };
   $('prm-confirm').onclick=_tryPrmUnlock;
@@ -632,7 +669,7 @@ function setSport(s){
   sport=s;
   document.querySelectorAll('.sp-btn').forEach(b=>b.classList.toggle('on',b.dataset.s===s));
   document.documentElement.style.setProperty('--sport',SPORTS[s].col);
-  buildJoints();lang_apply();
+  buildJoints();if(compareMode)buildJoints_b();lang_apply();
 }
 function setMode(mode,file){
   src=mode;
@@ -657,13 +694,13 @@ async function start_ana(){
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}},audio:false});vid.srcObject=stream;vid.removeAttribute('src');await vid.play();}
     catch(e1){try{stream=await navigator.mediaDevices.getUserMedia({video:true,audio:false});vid.srcObject=stream;await vid.play();}catch(e2){alert('카메라 오류: '+e2.message);return;}}
   }else{
-    vid.playbackRate=+$('spd-sel').value;
+    vid.playbackRate=1;
     // 비교 모드: seek 위치 유지(사용자가 동기화한 지점에서 시작), 일반: 처음부터
     if(!compareMode)vid.currentTime=0;
     await vid.play().catch(()=>{});
     // 비교 영상 B도 같은 시점에서 동시 시작
     if(compareMode&&vid2Loaded){
-      vid2.playbackRate=+$('spd-sel').value;
+      vid2.playbackRate=1;
       await vid2.play().catch(()=>{});
     }
   }
@@ -674,6 +711,8 @@ async function start_ana(){
   live=true;isPaused=false;
   wH=[];vH={};cur={};lastA={};lastLm=null;lastWlm=null;lastFrameT=0;
   angVel={sh:0,hip:0};angVelH={sh:[],hip:[]};_prevA=null;_prevAt=0;  // peak(peakAngVel 등)은 ↺ 리셋만 초기화
+  angVel_b={sh:0,hip:0};angVelH_b={sh:[],hip:[]};_prevA_b=null;_prevAt_b=0;
+  lastLm_b=null;lastWlm_b=null;lastA_b={};
   jumpRef=null;jumpH=0;jumpState='GROUND';
   jumpTakeoffT=0;jumpTakeoffHipY=0;_hipRef=0;refLegNorm=0.35;
   flightTimeSec=0;takeoffSpeed=0;jumpTakeoffAnkle=0;minAnkleGnd=0;
@@ -699,7 +738,6 @@ function stop_ana(){
   // 파일 모드면 시크 바 다시 표시
   if(src==='file'){
     showSeekWrap(true);
-    // 비교 모드: 종료 후에도 A·B 영상 모두 표시 → 슬라이더로 재분석 시작점 조정 가능
     if(compareMode&&vid2Loaded) vid.classList.add('show');
   }
 }
@@ -713,12 +751,15 @@ function loop(){
       try{const r=det.detectForVideo(vid,t);frame(r,t);}catch(e){console.warn(e);}
       fN++;if(t-fT>=1000){$('chip-fps').textContent=Math.round(fN*1000/(t-fT))+' fps';fN=0;fT=t;}
     }
+    // B 영상 분석: 비교 모드에서 2프레임마다 (IMAGE mode, 독립 분석)
+    if(compareMode&&detB&&vid2Loaded&&vid2.readyState>=2&&!vid2.paused&&fN%2===0){
+      try{const rB=detB.detect(vid2);frameB(rB,t);}catch(e){}
+    }
   }else if(lastLm&&lastWlm){
     // 일시정지: 마지막 프레임 재렌더
     resize();ctx.clearRect(0,0,cvs.width,cvs.height);
     const vr=getVidRect(cvs.width,cvs.height);
     draw_sk_on(ctx,vr,lastLm,lastWlm);
-    update_data_ov(lastA);
   }
   raf=requestAnimationFrame(loop);
 }
@@ -739,7 +780,37 @@ function frame(res,t){
   velLinear(wlm,t);computeAngVel(a,t);
   lastA=a;
   if(sport==='JMP')detectJump(lm,t); // JMP 종목 전용 점프 감지
-  update_panel(a);update_data_ov(a);
+  update_panel(a);
+}
+
+/* ── B 영상 프레임 처리 (비교 모드) ── */
+function frameB(res,t){
+  if(!res||!res.worldLandmarks||!res.worldLandmarks.length){return;}
+  const lm=res.landmarks[0],wlm=res.worldLandmarks[0];
+  lastLm_b=lm;lastWlm_b=wlm;
+  const a=angles3d(wlm);
+  computeAngVel_b(a,t);
+  lastA_b=a;
+  update_panel_b(a);
+}
+function computeAngVel_b(a,t){
+  if(_prevA_b&&_prevAt_b>0){
+    const dt=(t-_prevAt_b)/1000;
+    if(dt>0&&dt<0.5){
+      let dSh=Math.abs(a.shR-_prevA_b.shR);if(dSh>180)dSh=360-dSh;
+      let dHip=Math.abs(a.hipR-_prevA_b.hipR);if(dHip>180)dHip=360-dHip;
+      angVel_b.sh=angVel_b.sh*0.65+(dSh/dt)*0.35;
+      angVel_b.hip=angVel_b.hip*0.65+(dHip/dt)*0.35;
+    }
+  }
+  _prevA_b=a;_prevAt_b=t;
+  if(angVel_b.sh>peakAngVel_b.sh)peakAngVel_b.sh=angVel_b.sh;
+  if(angVel_b.hip>peakAngVel_b.hip)peakAngVel_b.hip=angVel_b.hip;
+  angVel_b.sh=Math.min(angVel_b.sh,MAX_ANG_VEL);
+  angVel_b.hip=Math.min(angVel_b.hip,MAX_ANG_VEL);
+  const _set_b=(id,v)=>{const e=$(id);if(e)e.style.width=v;};
+  _set_b('b-shv-fill',Math.min(100,angVel_b.sh/MAX_ANG_VEL*100)+'%');
+  _set_b('b-hipv-fill',Math.min(100,angVel_b.hip/MAX_ANG_VEL*100)+'%');
 }
 
 /* ── 비디오 레터박스 보정 ── */
@@ -797,7 +868,7 @@ function detectJump(lm,t){
 
   if(jumpRef===null){jumpRef=ankleGnd;return;}
 
-  const pr=src==='camera'?1.0:(+($('spd-sel').value)||1.0);
+  const pr=1.0; // 재생속도 항상 1× (spd-sel 제거)
   const slowMo=src==='camera'?1.0:slowMoFactor;
 
   switch(jumpState){
@@ -999,6 +1070,33 @@ function update_panel(a){
   });
 }
 
+/* ── B 패널 업데이트 (왼쪽 패널) ── */
+function update_panel_b(a){
+  if(!compareMode)return;
+  const f=v=>(v>=0?'+':'')+v+'°';
+  const _s=(id,v)=>{const e=$(id);if(e)e.textContent=v;};
+  _s('b-rv-sh',f(a.shR));_s('b-rv-hip',f(a.hipR));
+  _s('b-rv-xf',f(a.xf));
+  const bxf=$('b-rv-xf');if(bxf)bxf.style.color=Math.abs(a.xf)>25?'var(--green)':Math.abs(a.xf)>10?'var(--yellow)':'var(--txt2)';
+  _s('b-rv-shv',Math.round(angVel_b.sh)+'°/s');
+  _s('b-rv-hipv',Math.round(angVel_b.hip)+'°/s');
+  _s('b-rv-pksh',peakAngVel_b.sh>0?Math.round(peakAngVel_b.sh)+'°/s':'--°/s');
+  _s('b-rv-pkhip',peakAngVel_b.hip>0?Math.round(peakAngVel_b.hip)+'°/s':'--°/s');
+  SPORTS[sport].joints.forEach(j=>{const el=$('b-jv-'+j.id);if(el){el.textContent=(a[j.id]||0)+'°';el.style.color=j.col;}});
+}
+function buildJoints_b(){
+  const sp=SPORTS[sport];
+  const sec=$('b-joint-sec');if(!sec)return;
+  if(!sp.joints.length){sec.style.display='none';return;}
+  sec.style.display='';
+  const w=$('b-joint-wrap');w.innerHTML='';
+  sp.joints.forEach(j=>{
+    const row=document.createElement('div');row.className='rp-row';
+    row.innerHTML=`<span class="rp-lbl">${lang==='ko'?j.ko:j.en}</span><span class="rp-val" id="b-jv-${j.id}" style="color:${j.col}">--°</span>`;
+    w.appendChild(row);
+  });
+}
+
 /* ══════════════════════════════════════════
    녹화 캔버스 — 영상+스켈레톤+데이터패널+그래프
    해상도 최대 1920px, 12Mbps (2D 앱 동일)
@@ -1037,46 +1135,51 @@ function drawCompFrame(){
     compCtx.drawImage(vid2,dx,dy,dw,dh);
     compCtx.globalAlpha=1;
   }
-  // 스켈레톤 (전체 영상 위에)
+  // 스켈레톤 (A 영상 위에)
   if(lastLm&&lastWlm){draw_sk_on(compCtx,vr,lastLm,lastWlm,true,s);draw_arr_on(compCtx,vr,lastLm,lastWlm);}
-  // 데이터 패널 — 우측에 오버레이
-  draw_comp_panel(compCtx,compW,compH,s);
+  // A 데이터 패널 — 우측
+  draw_comp_panel(compCtx,compW,compH,s,'right');
+  // B 데이터 패널 — 좌측 (비교 모드 시)
+  if(compareMode&&Object.keys(lastA_b).length>0){
+    draw_comp_panel(compCtx,compW,compH,s,'left');
+  }
 }
 
 
 /* ── 녹화 데이터 패널 ── 영상 우측 중앙에 둥근 박스 오버레이 ──
    전체 사이드 덮지 않음. 콘텐츠 크기만큼만 배경 그림. */
-function draw_comp_panel(c,W,H,s){
+function draw_comp_panel(c,W,H,s,side='right'){
+  const isB=side==='left'; // B 패널 여부
+  const A=isB?lastA_b:lastA;
+  const aV=isB?angVel_b:angVel;
+  const pkV=isB?peakAngVel_b:peakAngVel;
   const ko=lang==='ko';
   const pad=Math.round(W*0.008);
-  const fsS=Math.round(W*0.016);          // 레이블 폰트
-  const fsL=Math.round(W*0.021);          // 값 폰트
-  const rH=fsS+2+fsL+Math.round(pad*0.6); // 실제 행 높이 (레이블+값, drawRow 실제 y증가량과 일치)
+  const fsS=Math.round(W*0.016);
+  const fsL=Math.round(W*0.021);
+  const rH=fsS+2+fsL+Math.round(pad*0.6);
   const divH=Math.round(pad*0.7);
-  const r=Math.round(W*0.009);            // 모서리 반경
-  const boxW=Math.round(W*0.105);         // 박스 폭
+  const r=Math.round(W*0.009);
+  const boxW=Math.round(W*0.105);
 
   // ── 콘텐츠 행 목록 수집 ──
   const f=v=>(v>=0?'+':'')+v+'°';
   const spJ=SPORTS[sport].joints;
   const items=[];
-  // 헤더
   const hdrH=fsL+Math.round(pad*0.3)+Math.round(fsS*0.85)+Math.round(pad*0.8);
-  // 데이터 행 (척추/전방 제외 — 박스 높이 초과 방지, 앱 패널에서 확인 가능)
   items.push(null);
-  items.push({lbl:ko?'어깨':'Sh',val:f(lastA.shR||0),col:'#a855f7'});
-  items.push({lbl:ko?'골반':'Hip',val:f(lastA.hipR||0),col:'#f97316'});
-  const xv=lastA.xf||0;
+  items.push({lbl:ko?'어깨':'Sh',val:f(A.shR||0),col:'#a855f7'});
+  items.push({lbl:ko?'골반':'Hip',val:f(A.hipR||0),col:'#f97316'});
+  const xv=A.xf||0;
   items.push({lbl:'X-factor',val:f(xv),col:Math.abs(xv)>25?'#22c55e':Math.abs(xv)>10?'#eab308':'rgba(255,255,255,.5)'});
   items.push(null);
-  items.push({lbl:ko?'어깨°/s':'Sh°/s',val:Math.round(angVel.sh)+'',col:'#a855f7'});
-  items.push({lbl:ko?'골반°/s':'Hip°/s',val:Math.round(angVel.hip)+'',col:'#f97316'});
+  items.push({lbl:ko?'어깨°/s':'Sh°/s',val:Math.round(aV.sh)+'',col:'#a855f7'});
+  items.push({lbl:ko?'골반°/s':'Hip°/s',val:Math.round(aV.hip)+'',col:'#f97316'});
   items.push(null);
-  items.push({lbl:ko?'최고 어깨°/s':'Pk Sh°/s',val:peakAngVel.sh>0?Math.round(peakAngVel.sh)+'':'--',col:'#a855f7'});
-  items.push({lbl:ko?'최고 골반°/s':'Pk Hip°/s',val:peakAngVel.hip>0?Math.round(peakAngVel.hip)+'':'--',col:'#f97316'});
-  if(spJ.length){items.push(null);spJ.forEach(j=>items.push({lbl:ko?j.ko:j.en,val:(lastA[j.id]||0)+'°',col:j.col}));}
-  // 점프 데이터 — JMP 종목만 상세 표시
-  if(sport==='JMP'){
+  items.push({lbl:ko?'최고 어깨':'Pk Sh',val:pkV.sh>0?Math.round(pkV.sh)+'':'--',col:'#a855f7'});
+  items.push({lbl:ko?'최고 골반':'Pk Hip',val:pkV.hip>0?Math.round(pkV.hip)+'':'--',col:'#f97316'});
+  if(spJ.length){items.push(null);spJ.forEach(j=>items.push({lbl:ko?j.ko:j.en,val:(A[j.id]||0)+'°',col:j.col}));}
+  if(!isB&&sport==='JMP'){
     items.push(null);
     items.push({lbl:ko?'점프높이':'Jump H',val:peakJumpH>0?peakJumpH+'cm':'--',col:'#FFD700'});
     items.push({lbl:ko?'체공시간':'Flight T',val:peakFlightTimeSec>0?peakFlightTimeSec.toFixed(3)+'s':'--',col:'#06b6d4'});
@@ -1089,8 +1192,8 @@ function draw_comp_panel(c,W,H,s){
   const contentH=hdrH+nRows*rH+nDivs*divH+pad*2;
   const boxH=Math.min(H*0.92,contentH+pad*2);
 
-  // ── 박스 위치: 우측, 세로 중앙 ──
-  const bx=W-boxW-Math.round(W*0.012);
+  // ── 박스 위치: 좌측/우측, 세로 중앙 ──
+  const bx=isB?Math.round(W*0.012):W-boxW-Math.round(W*0.012);
   const by=Math.round((H-boxH)/2);
 
   // ── 둥근 박스 배경 ──
@@ -1109,10 +1212,14 @@ function draw_comp_panel(c,W,H,s){
   let y=by+pad;
   c.textAlign='left';
 
-  // 헤더 (APL 3D + 종목)
+  // 헤더 (A 패널: APL 3D, B 패널: B)
   c.font=`900 ${fsL}px -apple-system,sans-serif`;
-  c.fillStyle='#e8e8f2';c.fillText('APL',px,y+fsL);
-  c.fillStyle=SPORTS[sport].col;c.fillText(' 3D',px+c.measureText('APL').width,y+fsL);
+  if(isB){
+    c.fillStyle='#22c55e';c.fillText('B',px,y+fsL);
+  }else{
+    c.fillStyle='#e8e8f2';c.fillText('APL',px,y+fsL);
+    c.fillStyle=SPORTS[sport].col;c.fillText(' 3D',px+c.measureText('APL').width,y+fsL);
+  }
   y+=fsL+Math.round(pad*0.3);
   c.font=`600 ${Math.round(fsS*0.85)}px -apple-system,sans-serif`;
   c.fillStyle=SPORTS[sport].col;
@@ -1266,10 +1373,6 @@ function lang_apply(){
   if(!isRec&&$('btn-rec'))$('btn-rec').textContent=ko?'⏺ 녹화':'⏺ Rec';
   $('btn-load-b-lbl').textContent=ko?'비교 영상':'Compare';
   $('pause-badge').textContent=ko?'⏸ 일시정지 — 👻 기준 자세 설정':'⏸ Paused — Set 👻 reference';
-  $('do-lbl-sh').textContent=ko?'어깨':'Sh';$('do-lbl-hip').textContent=ko?'골반':'Hip';
-  $('do-lbl-lknee').textContent=ko?'왼무릎':'L.Knee';$('do-lbl-rknee').textContent=ko?'오른무릎':'R.Knee';
-  $('do-lbl-lhip').textContent=ko?'왼고관절':'L.Hip';$('do-lbl-rhip').textContent=ko?'오른고관절':'R.Hip';
-  $('do-lbl-shv').textContent=ko?'어깨°/s':'Sh°/s';$('do-lbl-hipv').textContent=ko?'골반°/s':'Hip°/s';
   $('rp-t-rot').textContent=ko?'회전각 3D':'Rotation 3D';
   $('rp-sh').textContent=ko?'어깨':'Shoulder';$('rp-hip').textContent=ko?'골반':'Hip';
   $('rp-t-pos').textContent=ko?'자세 3D':'Posture 3D';
@@ -1278,6 +1381,15 @@ function lang_apply(){
   $('rp-shv').textContent=ko?'어깨':'Shoulder';$('rp-hipv').textContent=ko?'골반':'Hip';
   $('rp-t-pkangv').textContent=ko?'최고 회전속도':'Peak Speed';
   $('rp-pksh').textContent=ko?'어깨':'Shoulder';$('rp-pkhip').textContent=ko?'골반':'Hip';
+  // B 패널 언어 업데이트
+  const _bl=(id,v)=>{const e=$(id);if(e)e.textContent=v;};
+  _bl('b-rp-t-rot',ko?'회전각 3D':'Rotation 3D');
+  _bl('b-rp-sh',ko?'어깨':'Shoulder');_bl('b-rp-hip',ko?'골반':'Hip');
+  _bl('b-rp-t-angv',ko?'회전 속도(°/s)':'Rot.Speed');
+  _bl('b-rp-shv',ko?'어깨':'Shoulder');_bl('b-rp-hipv',ko?'골반':'Hip');
+  _bl('b-rp-t-pkangv',ko?'최고 회전속도':'Peak Speed');
+  _bl('b-rp-pksh',ko?'어깨':'Shoulder');_bl('b-rp-pkhip',ko?'골반':'Hip');
+  _bl('b-rp-t-joint',ko?'관절 각도':'Joint Angle');
   $('rp-t-joint').textContent=ko?'관절 각도(굴곡)':'Joint Angle(flex)';
   $('rp-t-pts').textContent=ko?'추적 포인트':'Track Points';
   $('rp-t-alert').textContent=ko?'분석 피드백':'Feedback';
@@ -1288,8 +1400,8 @@ function lang_apply(){
     slomoSel.options[0].text=ko?'🎬 일반':'🎬 Normal';
     slomoSel.options[1].text=ko?'🐢 ×8슬로':'🐢 ×8Slo';
   }
-  const ICONS={'GEN':'⚡','SPL':'❄️','GPL':'⛳','BPL':'⚾','TPL':'🎾','JMP':'🦘'};
-  const NAMES={GEN:{ko:'일반',en:'General'},SPL:{ko:'SPL 스케이팅',en:'Skating'},GPL:{ko:'골프',en:'Golf'},BPL:{ko:'야구/농구',en:'Baseball/Bball'},TPL:{ko:'테니스',en:'Tennis'},JMP:{ko:'점프분석',en:'Jump'}};
+  const ICONS={'GEN':'⚡','SPL':'🧊','GPL':'⛳','BPL':'⚾🏀','TPL':'🎾','JMP':'🦘'};
+  const NAMES={GEN:{ko:'일반',en:'General'},SPL:{ko:'SPL',en:'SPL'},GPL:{ko:'GPL',en:'GPL'},BPL:{ko:'BPL',en:'BPL'},TPL:{ko:'TPL',en:'TPL'},JMP:{ko:'Jump',en:'Jump'}};
   document.querySelectorAll('.sp-btn').forEach(b=>{const s=b.dataset.s;b.textContent=ICONS[s]+' '+(ko?NAMES[s].ko:NAMES[s].en);});
   buildPts();buildRows();buildJoints();
   // ref-msg 언어 동기화 (B 로드 완료 메시지)
