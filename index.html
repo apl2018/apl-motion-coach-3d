@@ -37,11 +37,6 @@ header{display:flex;align-items:center;justify-content:space-between;
   white-space:nowrap;transition:all .2s;flex-shrink:0;min-height:26px}
 .sp-btn[data-s="GEN"].on{background:rgba(59,130,246,.25);border-color:#3b82f6;color:#3b82f6}
 .sp-btn[data-s="PRO"].on{background:rgba(255,215,0,.25);border-color:#FFD700;color:#FFD700}
-.jmp-sub{display:flex;align-items:center;justify-content:center;
-  background:rgba(255,255,255,.06);color:var(--txt2);border:1px solid var(--border);
-  border-radius:6px;padding:2px 0;font-size:9px;font-weight:700;cursor:pointer;flex:1}
-.jmp-sub.on{background:rgba(255,215,0,.2);border-color:#FFD700;color:#FFD700}
-.jmp-sub:active{opacity:.6}
 #app-body{flex:1;display:flex;overflow:hidden;min-height:0}
 #vid-wrap{flex:1;position:relative;background:#000;overflow:hidden}
 #vid{position:absolute;width:100%;height:100%;object-fit:contain;opacity:0}
@@ -174,7 +169,7 @@ video{touch-action:none} /* 더블탭 줌 방지: video 요소는 iOS에서 자�
 <header>
   <div>
     <span class="h-logo">APL Motion Coach <span class="accent">3D</span></span>
-    <span class="h-ver">v46</span>
+    <span class="h-ver">v47</span>
   </div>
   <div class="h-right">
     <button id="prm-badge" class="free">FREE</button>
@@ -298,12 +293,7 @@ video{touch-action:none} /* 더블탭 줌 방지: video 요소는 iOS에서 자�
     </div>
     <div class="rp-sec" id="jump-sec" style="display:none">
       <div class="rp-title" id="rp-t-jump">점프 분석</div>
-      <!-- 서브모드: 제자리 / 도움닫기 -->
-      <div style="display:flex;gap:3px;margin-bottom:4px">
-        <button class="jmp-sub on" id="btn-jmp-standing">제자리</button>
-        <button class="jmp-sub" id="btn-jmp-approach">도움닫기</button>
-      </div>
-      <!-- 비행시간 기반 높이 -->
+      <!-- 비행시간 기반 높이 (v47: 제자리/도움닫기 구분 제거 — 모든 점프 동일 로직) -->
       <div class="rp-row"><span class="rp-lbl" id="rp-jump">높이</span><span class="rp-val" id="rv-jump" style="color:#FFD700">--cm</span></div>
       <div class="rp-row"><span class="rp-lbl" id="rp-jumpPk">최고높이</span><span class="rp-val" id="rv-jumpPk" style="color:#FFD700">--cm</span></div>
       <!-- 체공시간 -->
@@ -447,7 +437,8 @@ let slowMoFactor=1.0;   // 슬로모션 배율: 1=일반, 4=120fps슬로, 8=240f
 // ── JMP 전용 분석 ──────────────────────────
 let flightTimeSec=0,peakFlightTimeSec=0; // 체공시간 (s, 슬로모션 보정 포함)
 let takeoffSpeed=0;                      // 도약속도 (m/s) = g×T/2
-let jumpSubMode='standing';              // 'standing'|'approach'
+// v47: jumpSubMode(제자리/도움닫기) 제거 — 도움닫기의 0.5s 게이트가 피겨 점프(~0.4s) 차단
+let _jdbg1='',_jdbg2='';                 // v47: 점프 진단 표시 (상태 / 마지막 판정 결과)
 let jumpTakeoffAnkle=0;                  // 이륙 시 발목 Y 위치 (착지 기준점)
 let minAnkleGnd=0;                       // 비행 중 최저 발목 위치 (진짜 점프 판별)
 let _lastAnkleY=null,_lastAnkleY_b=null; // v41: 양발 미감지 시 최근 발목값 유지 (무릎 폴백 제거)
@@ -588,10 +579,6 @@ function events(){
     setTimeout(()=>{_rstBtn.style.opacity='';},200);
     _doReset();
   });
-  // JMP 서브모드 버튼 (null 체크 포함)
-  const _jmpS=$('btn-jmp-standing'),_jmpA=$('btn-jmp-approach');
-  if(_jmpS)_jmpS.onclick=()=>{jumpSubMode='standing';_jmpS.classList.add('on');if(_jmpA)_jmpA.classList.remove('on');};
-  if(_jmpA)_jmpA.onclick=()=>{jumpSubMode='approach';_jmpA.classList.add('on');if(_jmpS)_jmpS.classList.remove('on');};
   // 정밀 모드 토글 (Full 모델)
   $('btn-model').onclick=async()=>{
     const ko=lang==='ko';
@@ -770,7 +757,7 @@ async function start_ana(){
   jumpTakeoffT=0;jumpTakeoffHipY=0;_hipRef=0;refLegNorm=0.35;
   flightTimeSec=0;takeoffSpeed=0;jumpTakeoffAnkle=0;minAnkleGnd=0;
   _lastAnkleY=null;_lastAnkleY_b=null;_lastAnkleX=null;_lastAnkleX_b=null;
-  _landCnt=0;_landCnt_b=0;
+  _landCnt=0;_landCnt_b=0;_jdbg1='';_jdbg2='';
   fN=0;fT=performance.now();
   $('btn-main').textContent=lang==='ko'?'■ 중지':'■ Stop';
   $('btn-main').className='btn btn-main stop';
@@ -834,7 +821,18 @@ function frame(res,t){
   const a=angles3d(wlm);
   velLinear(wlm,t);computeAngVel(a,t);
   lastA=a;
-  if(sport==='PRO')detectJump(lm,t); // v45: 프리미엄 모드에서 점프 감지
+  if(sport==='PRO'){
+    detectJump(lm,t); // v45: 프리미엄 모드에서 점프 감지
+    // v47: 점프 진단 오버레이 (좌하단) — 상태 / 마지막 판정 결과·차단 사유
+    if(_jdbg1||_jdbg2){
+      ctx.font='600 11px monospace';
+      const _w=Math.max(ctx.measureText(_jdbg1).width,ctx.measureText(_jdbg2).width)+14;
+      const _y0=cvs.height-46;
+      ctx.fillStyle='rgba(0,0,0,.65)';ctx.fillRect(6,_y0,_w,38);
+      ctx.fillStyle='#FFD700';ctx.fillText(_jdbg1,13,_y0+15);
+      ctx.fillStyle=_jdbg2.startsWith('✔')?'#22c55e':'#ef4444';ctx.fillText(_jdbg2,13,_y0+31);
+    }
+  }
   if(xfHi===null||a.xf>xfHi)xfHi=a.xf; // v42: X-factor 극값 추적
   if(xfLo===null||a.xf<xfLo)xfLo=a.xf;
   update_panel(a);
@@ -911,7 +909,6 @@ function detectJump_b(lm,t){
       const airMs=t-jumpTakeoffT_b;
       const realMs=airMs*pr/slowMo;
       const realSec=realMs/1000;
-      const isApproach=jumpSubMode==='approach';
       if(ankleGnd<minAnkleGnd_b)minAnkleGnd_b=ankleGnd;
       const minDrop=jumpTakeoffAnkle_b-minAnkleGnd_b;
       flightTimeSec_b=realSec;
@@ -929,7 +926,7 @@ function detectJump_b(lm,t){
           const realSec0=airMs0*pr/slowMo/1000;
           if(airMs0>=50){
             const validJump=minDrop>=0.020&&realSec0>=0.15; // v46: A와 동일
-            const validForPeak=validJump&&realSec0<=MAX_FLIGHT_S&&(!isApproach||realSec0>=0.5);
+            const validForPeak=validJump&&realSec0<=MAX_FLIGHT_S; // v47: 도움닫기 0.5s 게이트 제거
             flightTimeSec_b=realSec0;
             takeoffSpeed_b=+(9.81*realSec0/2).toFixed(2);
             if(validForPeak){
@@ -1023,8 +1020,9 @@ function detectJump(lm,t){
       gndPts.push({x:ankleX,y:ankleGnd});
       if(gndPts.length>GND_MAX)gndPts.shift();
       jumpH=0;
-      if(gndPts.length<GND_MIN)break; // 워밍업: 지면 샘플 부족 시 판정 보류 (~0.2s)
+      if(gndPts.length<GND_MIN){_jdbg1='지면 학습 '+gndPts.length+'/'+GND_MIN;break;} // 워밍업
       const fit=gndFit(gndPts);
+      _jdbg1='지면 · 이륙 트리거까지 '+Math.max(0,(ankleGnd-(gndY(fit,ankleX)-0.030))*100).toFixed(1)+'%';
       // 이륙: 현재 x 위치의 지면보다 3% 이상 위
       if(ankleGnd<gndY(fit,ankleX)-0.030){
         jumpTakeoffT=t;
@@ -1040,7 +1038,7 @@ function detectJump(lm,t){
       const airMs=t-jumpTakeoffT;
       const realMs=airMs*pr/slowMo;
       const realSec=realMs/1000;
-      const isApproach=jumpSubMode==='approach';
+      _jdbg1='공중 T='+realSec.toFixed(2)+'s';
 
       // 최저 발목 추적 (진짜 점프 판별용)
       if(ankleGnd<minAnkleGnd)minAnkleGnd=ankleGnd;
@@ -1072,15 +1070,22 @@ function detectJump(lm,t){
             // 몸 전체(CoM) 상승보다 훨씬 작음 → 5% 기준이 진짜 점프를 차단 (peak 미기록 원인)
             // 걷기/스텝 필터는 이륙 트리거(지면 3% 위) + 체공 0.15s 조건이 담당
             const validJump=minDrop>=0.020&&realSec0>=0.15;
-            const validForPeak=validJump&&realSec0<=MAX_FLIGHT_S&&(!isApproach||realSec0>=0.5);
+            const validForPeak=validJump&&realSec0<=MAX_FLIGHT_S; // v47: 도움닫기 0.5s 게이트 제거
             // 표시값을 첫 접촉 기준으로 보정
             flightTimeSec=realSec0;
             takeoffSpeed=+(9.81*realSec0/2).toFixed(2);
+            const h0=realSec0/2,jh0=Math.min(300,Math.round(9.81*h0*h0/2*100));
             if(validForPeak){
-              const h0=realSec0/2,jh0=Math.min(300,Math.round(9.81*h0*h0/2*100));
               if(jh0>peakJumpH)peakJumpH=jh0;
               if(realSec0>peakFlightTimeSec)peakFlightTimeSec=realSec0;
+              _jdbg2='✔ 기록 T='+realSec0.toFixed(2)+'s h='+jh0+'cm';
+            }else{
+              _jdbg2='✖ 무시 '+(realSec0<0.15?'T='+realSec0.toFixed(2)+'s<0.15s'
+                :minDrop<0.020?'발상승 '+(minDrop*100).toFixed(1)+'%<2%'
+                :'T='+realSec0.toFixed(2)+'s>1.2s');
             }
+          }else{
+            _jdbg2='✖ 무시 체공 50ms 미만';
           }
           // 착지 지점을 지면 샘플에 반영 후 상태 리셋
           gndPts.push({x:ankleX,y:ankleGnd});
@@ -1091,7 +1096,7 @@ function detectJump(lm,t){
       }
       /* v41: 타임아웃 4s→1.2s. 기존 4s 동안 jumpH가 300cm cap까지 폭주·고착하던 문제 해결.
          초과 시 추적 실패로 간주, 표시값도 즉시 0 리셋 (peak 미반영) */
-      if(realSec>MAX_FLIGHT_S){gndPts.length=0;jumpState='GROUND';jumpH=0;flightTimeSec=0;takeoffSpeed=0;} // 지면 모델 재구축
+      if(realSec>MAX_FLIGHT_S){gndPts.length=0;jumpState='GROUND';jumpH=0;flightTimeSec=0;takeoffSpeed=0;_jdbg2='✖ 착지 미감지 (T>1.2s)';} // 지면 모델 재구축
       break;
     }
     case'LAND':{
@@ -1529,9 +1534,6 @@ function buildJoints(){
       const fttPkLbl=$('rp-ftt-pk');if(fttPkLbl)fttPkLbl.textContent=ko?'최고체공시간':'Peak T';
       const ftvLbl=$('rp-ftv');if(ftvLbl)ftvLbl.textContent=ko?'도약속도':'Takeoff V';
       const ftsLbl=$('rp-fts');if(ftsLbl)ftsLbl.textContent=ko?'촬영속도':'Capture';
-      const sb=$('btn-jmp-standing');const ab=$('btn-jmp-approach');
-      if(sb)sb.textContent=ko?'제자리':'Standing';
-      if(ab)ab.textContent=ko?'도움닫기':'Approach';
       // 현재 슬로모션 배율 표시
       const ftsEl=$('rv-fts');
       if(ftsEl){const m={'1':ko?'일반':'Normal','8':'240fps'};ftsEl.textContent=m[String(slowMoFactor)]||slowMoFactor+'×';}
