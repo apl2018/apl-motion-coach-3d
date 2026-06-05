@@ -169,7 +169,7 @@ video{touch-action:none} /* 더블탭 줌 방지: video 요소는 iOS에서 자�
 <header>
   <div>
     <span class="h-logo">APL Motion Coach <span class="accent">3D</span></span>
-    <span class="h-ver">v60</span>
+    <span class="h-ver">v61</span>
   </div>
   <div class="h-right">
     <button id="prm-badge" class="free">FREE</button>
@@ -336,6 +336,7 @@ video{touch-action:none} /* 더블탭 줌 방지: video 요소는 iOS에서 자�
   </div>
   <!-- 액션 버튼 -->
   <div class="seek-row" style="margin-top:2px;gap:6px">
+    <button class="btn-cmp" id="btn-precise" style="border-color:rgba(6,182,212,.4);color:var(--cyan);background:rgba(6,182,212,.12)">🎯 <span id="btn-precise-lbl">정밀측정</span></button>
     <button class="btn-cmp" id="btn-load-b">📁 <span id="btn-load-b-lbl">비교 영상</span></button>
     <input type="file" id="file-input-b" accept="video/*" style="display:none">
     <span id="ref-msg"></span>
@@ -566,6 +567,7 @@ let _vfcN=0,_anN=0;       // 표시된 프레임 수 / 분석된 프레임 수 �
 // 벽시계를 넘기면 처리 fps 변동에 따라 같은 영상도 실행마다 좌표가 달라짐 →
 // 미디어 시간 기반으로 넘겨 영상 내용만의 함수로 결정화. (단조 증가 필수 → base 오프셋 관리)
 let _tsBase=0,_tsLast=-1,_tsBase_b=0,_tsLast_b=-1;
+let precRun=false; // v61: 정밀 측정(프레임 스텝) 실행 중
 // ── 녹화 ──────────────────────────────────
 let recorder=null,recChunks=[],isRec=false,_compInterval=null;
 let _pendingSaveBlob=null,_pendingSaveName='';
@@ -708,6 +710,9 @@ function events(){
     await _loadModel();
   };
 
+  // v61: 정밀 측정
+  $('btn-precise').onclick=()=>precise_ana();
+
   // ── 비교 영상 B 로드 ──────────────────────
   $('btn-load-b').onclick=()=>{
     // 비교 분석 = 프리미엄 전용
@@ -825,6 +830,7 @@ function events(){
   vid.onended=()=>{_previewPlaying=false;if(!live)$('btn-preview').textContent='▶';};
 
   $('seek-bar').oninput=()=>{
+    if(precRun)return; // v61: 정밀 측정 중 수동 시킹 차단
     _isSeeking=true;
     if(vid.duration)vid.currentTime=($('seek-bar').value/1000)*vid.duration;
     if(compareMode)cmpStartA=vid.currentTime; // v51: 동기 시작점 갱신
@@ -833,6 +839,7 @@ function events(){
   $('seek-bar').onchange=()=>{_isSeeking=false;};
 
   $('btn-preview').onclick=()=>{
+    if(precRun)return; // v61
     if(!vid.src&&!vid.srcObject)return;
     _previewPlaying=!_previewPlaying;
     if(_previewPlaying)vid.play().catch(()=>{_previewPlaying=false;});
@@ -866,6 +873,26 @@ function setMode(mode,file){
 }
 
 /* ── 시작/중지 ── */
+// v61: 분석 런 상태 초기화 (start_ana·precise_ana 공통) — peak(peakAngVel 등)은 ↺ 리셋만 초기화
+function _resetRunState(){
+  wH=[];vH={};cur={};lastA={};lastLm=null;lastWlm=null;lastFrameT=0;
+  angVel={sh:0,hip:0};angVelH={sh:[],hip:[]};_prevA=null;_prevAt=0;
+  angVel_b={sh:0,hip:0};angVelH_b={sh:[],hip:[]};_prevA_b=null;_prevAt_b=0;
+  lastLm_b=null;lastWlm_b=null;lastA_b={};
+  jumpH_b=0;jumpState_b='GROUND';gndPts_b.length=0;_gndFitTO_b=null;
+  jumpTakeoffT_b=0;jumpTakeoffAnkle_b=0;minAnkleGnd_b=0;
+  flightTimeSec_b=0;takeoffSpeed_b=0;
+  jumpH=0;jumpState='GROUND';gndPts.length=0;_gndFitTO=null;
+  jumpTakeoffT=0;jumpTakeoffHipY=0;_hipRef=0;refLegNorm=0.35;
+  flightTimeSec=0;takeoffSpeed=0;jumpTakeoffAnkle=0;minAnkleGnd=0;
+  _lastAnkleY=null;_lastAnkleY_b=null;_lastAnkleX=null;_lastAnkleX_b=null;
+  _landCnt=0;_landCnt_b=0;_jdbg1='';_jdbg2='';_jdbg1b='';_jdbg2b='';
+  _toPrevY=null;_toVy=0;_toPrevY_b=null;_toVy_b=0;_lastGndT=0;_lastGndT_b=0;
+  _gapPrev=null;_riseT=0;_toCnt=0;_gapPrev_b=null;_riseT_b=0;_toCnt_b=0; // v58
+  airPts.length=0;airPts_b.length=0;_vfcT=-1;_lastDetT=-1;_vfcT_b=-1;_lastDetT_b=-1; // v58
+  _tsBase=_tsLast+1000;_tsBase_b=_tsLast_b+1000;_vfcN=0;_anN=0;_jHist.length=0; // v60
+  fN=0;fT=performance.now();
+}
 async function start_ana(){
   if(!det){alert('모델 로딩 중입니다.');return;}
   if(src==='camera'){
@@ -888,23 +915,7 @@ async function start_ana(){
   // 비교 모드: vid-wrap에 클래스 추가 → A 영상 약간 투명하게
   $('vid-wrap').classList.toggle('cmp-on',compareMode);
   live=true;isPaused=false;
-  wH=[];vH={};cur={};lastA={};lastLm=null;lastWlm=null;lastFrameT=0;
-  angVel={sh:0,hip:0};angVelH={sh:[],hip:[]};_prevA=null;_prevAt=0;  // peak(peakAngVel 등)은 ↺ 리셋만 초기화
-  angVel_b={sh:0,hip:0};angVelH_b={sh:[],hip:[]};_prevA_b=null;_prevAt_b=0;
-  lastLm_b=null;lastWlm_b=null;lastA_b={};
-  jumpH_b=0;jumpState_b='GROUND';gndPts_b.length=0;_gndFitTO_b=null;
-  jumpTakeoffT_b=0;jumpTakeoffAnkle_b=0;minAnkleGnd_b=0;
-  flightTimeSec_b=0;takeoffSpeed_b=0;
-  jumpH=0;jumpState='GROUND';gndPts.length=0;_gndFitTO=null;
-  jumpTakeoffT=0;jumpTakeoffHipY=0;_hipRef=0;refLegNorm=0.35;
-  flightTimeSec=0;takeoffSpeed=0;jumpTakeoffAnkle=0;minAnkleGnd=0;
-  _lastAnkleY=null;_lastAnkleY_b=null;_lastAnkleX=null;_lastAnkleX_b=null;
-  _landCnt=0;_landCnt_b=0;_jdbg1='';_jdbg2='';_jdbg1b='';_jdbg2b='';
-  _toPrevY=null;_toVy=0;_toPrevY_b=null;_toVy_b=0;_lastGndT=0;_lastGndT_b=0;
-  _gapPrev=null;_riseT=0;_toCnt=0;_gapPrev_b=null;_riseT_b=0;_toCnt_b=0; // v58: v57 보간 상태 초기화 누락 보완
-  airPts.length=0;airPts_b.length=0;_vfcT=-1;_lastDetT=-1;_vfcT_b=-1;_lastDetT_b=-1; // v58
-  _tsBase=_tsLast+1000;_tsBase_b=_tsLast_b+1000;_vfcN=0;_anN=0;_jHist.length=0; // v60: 타임스탬프 단조 증가 유지 + 진단 카운터 리셋
-  fN=0;fT=performance.now();
+  _resetRunState(); // v61: 정밀 측정과 공유하는 런 상태 초기화
   $('btn-main').textContent=lang==='ko'?'■ 중지':'■ Stop';
   $('btn-main').className='btn btn-main stop';
   $('no-det').classList.remove('on');
@@ -912,6 +923,7 @@ async function start_ana(){
   loop();
 }
 function stop_ana(){
+  precRun=false; // v61: 정밀 측정 루프 중단 신호
   live=false;isPaused=false;if(isRec)stopRec();
   if(raf){cancelAnimationFrame(raf);raf=null;}
   if(src==='camera'&&stream){stream.getTracks().forEach(t=>t.stop());stream=null;vid.srcObject=null;}
@@ -928,6 +940,54 @@ function stop_ana(){
     showSeekWrap(true);
     if(compareMode&&vid2Loaded) vid.classList.add('show');
   }
+}
+
+/* ── v61: 정밀 측정 — 프레임 스텝 결정적 분석 ──────────────
+   실시간 재생 분석은 기기 부하에 따라 처리 프레임 세트·타이밍이 매번 달라
+   같은 영상도 반복 편차 발생 (랜드마크 궤적 자체가 흔들림). 정밀 측정은
+   영상을 1/30초 간격으로 시킹하며 모든 프레임을 정확한 미디어 시각으로 1회씩 분석
+   → 실행마다 100% 동일한 입력 = 동일한 결과. 분석 속도는 실시간보다 느릴 수 있음.
+   시크바 현재 위치부터 끝(또는 ■ 중지)까지 — 점프 직전으로 맞춰 시작하면 빠름. */
+function _seekTo(v,t){
+  return new Promise(res=>{
+    let done=false;
+    const h=()=>{if(done)return;done=true;clearTimeout(to);v.removeEventListener('seeked',h);res();};
+    const to=setTimeout(h,400); // seeked 미발화 가드
+    v.addEventListener('seeked',h);
+    v.currentTime=t;
+  });
+}
+async function precise_ana(){
+  if(!det){alert(lang==='ko'?'모델 로딩 중입니다.':'Model is loading...');return;}
+  if(src!=='file'||!vid.src){alert(lang==='ko'?'영상 파일을 먼저 선택하세요':'Load a video file first');return;}
+  if(live)stop_ana();
+  vid.pause();
+  precRun=true;live=true;isPaused=false;
+  _resetRunState();
+  $('btn-main').textContent=lang==='ko'?'■ 중지':'■ Stop';
+  $('btn-main').className='btn btn-main stop';
+  vid.classList.add('show');
+  $('no-det').classList.remove('on');
+  const step=1/30; // 미디어 초 (대부분의 폰 영상 30fps와 일치)
+  const t0=vid.currentTime,dur=vid.duration||0;
+  for(let mt=t0;mt<dur-0.01&&precRun;mt+=step){
+    await _seekTo(vid,mt);
+    if(!precRun)break;
+    const mtMs=vid.currentTime*1000;
+    _lastDetT=mtMs; // detectJump의 vt 소스 (rVFC 경로와 동일)
+    let ts=_tsBase+mtMs;if(ts<=_tsLast)ts=_tsLast+1;_tsLast=ts;
+    // frame()의 시간축도 미디어 기반(ts) — 회전속도(°/s)·선형속도가 처리 속도와 무관하게 영상 시간 기준으로 계산됨
+    try{const r=det.detectForVideo(vid,ts);frame(r,ts);}catch(e){}
+    _anN++;_vfcN++;
+    if(dur)$('seek-bar').value=(vid.currentTime/dur)*1000;
+    $('seek-time').textContent=fmtTime(vid.currentTime)+' / '+fmtTime(dur);
+    setRefMsg((lang==='ko'?'🎯 정밀 분석 중 ':'🎯 Analyzing ')+Math.round((mt-t0)/Math.max(0.01,dur-t0)*100)+'%  (■ 중지 가능)','var(--cyan)');
+  }
+  const finished=precRun;
+  precRun=false;
+  if(live)stop_ana();
+  setRefMsg(finished?(lang==='ko'?'🎯 정밀 분석 완료 — 같은 구간 반복 시 동일 결과':'🎯 Precise analysis done')
+    :(lang==='ko'?'정밀 분석 중단됨':'Stopped'),finished?'var(--green)':'var(--yellow)');
 }
 
 /* ── 메인 루프 ── */
@@ -1873,6 +1933,7 @@ function lang_apply(){
   // btn-rec, 비교 모드 다국어
   if(!isRec&&$('btn-rec'))$('btn-rec').textContent=ko?'⏺ 녹화':'⏺ Rec';
   $('btn-load-b-lbl').textContent=ko?'비교 영상':'Compare';
+  $('btn-precise-lbl').textContent=ko?'정밀측정':'Precise'; // v61
   $('pause-badge').textContent=ko?'⏸ 일시정지 — 👻 기준 자세 설정':'⏸ Paused — Set 👻 reference';
   const _lbl=(id,v)=>{const e=$(id);if(e)e.textContent=v;};
   _lbl('rp-xfpk-n',ko?'X피크−':'X.pk−');_lbl('rp-xfpk-p',ko?'X피크+':'X.pk+');
