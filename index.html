@@ -169,7 +169,7 @@ video{touch-action:none} /* 더블탭 줌 방지: video 요소는 iOS에서 자�
 <header>
   <div>
     <span class="h-logo">APL Motion Coach <span class="accent">3D</span></span>
-    <span class="h-ver">v62</span>
+    <span class="h-ver">v63</span>
   </div>
   <div class="h-right">
     <button id="prm-badge" class="free">FREE</button>
@@ -588,6 +588,21 @@ if(HAS_VFC){
   const chB=()=>vid2.requestVideoFrameCallback((n,m)=>{_vfcT_b=m.mediaTime*1000;chB();});
   ch();chB();
 }
+// ── v63: 전역 오류 표시 ──────────────────
+// 원격 디버깅용: 어떤 런타임 오류든 화면 하단에 빨간 토스트로 표시 (탭하면 닫힘).
+// "기능이 조용히 사라지는" 증상(v61 녹화 저장 미동작 등)의 원인 오류를 사용자가 직접 확인·보고 가능.
+function _errToast(msg){
+  let el=document.getElementById('err-toast');
+  if(!el){
+    el=document.createElement('div');el.id='err-toast';
+    el.style.cssText='position:fixed;left:8px;right:8px;bottom:64px;z-index:999;background:rgba(190,30,30,.93);color:#fff;font-size:11px;line-height:1.5;padding:8px 10px;border-radius:8px;white-space:pre-wrap;word-break:break-all';
+    el.onclick=()=>el.remove();
+    document.body.appendChild(el);
+  }
+  el.textContent='⚠ '+msg+' (탭=닫기)';
+}
+window.addEventListener('error',e=>_errToast((e.message||'script error')+(e.lineno?' @line '+e.lineno:'')));
+window.addEventListener('unhandledrejection',e=>_errToast('Promise: '+(e.reason&&e.reason.message||e.reason)));
 const gC=$('graph-cvs')||{},gX=gC.getContext?gC.getContext('2d'):null;
 
 
@@ -1009,7 +1024,7 @@ function loop(){
         // v60: 파일 모드 detectForVideo 타임스탬프 = 미디어 시간 (내부 스무딩 결정화)
         let ts=t;
         if(src==='file'){ts=_tsBase+((HAS_VFC&&_vfcT>=0)?_vfcT:vid.currentTime*1000);if(ts<=_tsLast)ts=_tsLast+1;_tsLast=ts;}
-        try{const r=det.detectForVideo(vid,ts);frame(r,t);}catch(e){console.warn(e);}
+        try{const r=det.detectForVideo(vid,ts);frame(r,t);}catch(e){console.warn(e);if(!window._lerr){window._lerr=1;_errToast('분석 오류: '+(e&&e.message||e));}} // v63: 첫 오류 1회 표시
         fN++;_anN++;
       }
       if(t-fT>=1000){$('chip-fps').textContent=Math.round(fN*1000/(t-fT))+' fps';fN=0;fT=t;}
@@ -1834,6 +1849,7 @@ function startRec(){
     recChunks=[];
     recorder.ondataavailable=e=>{if(e.data&&e.data.size>0)recChunks.push(e.data);};
     recorder.onstop=async()=>{
+      try{ // v63: 저장 경로 전체 오류 가시화 + 실패 시 직접 다운로드 폴백
       try{recorder.stream.getTracks().forEach(t=>t.stop());}catch(e){}
       const type=recorder.mimeType||'video/mp4';
       const blob=new Blob(recChunks,{type});
@@ -1857,6 +1873,14 @@ function startRec(){
       if(!ok){
         _pendingSaveBlob=blob;_pendingSaveName=fname;
         showSaveChip();
+      }
+      }catch(err){ // v63: 어떤 단계가 실패해도 오류 표시 + 영상은 직접 다운로드로 구출
+        _errToast('녹화 저장 오류: '+(err&&err.message||err));
+        try{
+          const url=URL.createObjectURL(new Blob(recChunks,{type:(recorder&&recorder.mimeType)||'video/mp4'}));
+          const a=document.createElement('a');a.href=url;a.download='APL_3D_rec.mp4';a.click();
+          setTimeout(()=>URL.revokeObjectURL(url),5000);
+        }catch(e2){}
       }
     };
     recorder.start(200);
