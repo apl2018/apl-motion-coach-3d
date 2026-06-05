@@ -170,7 +170,7 @@ video{touch-action:none} /* 더블탭 줌 방지: video 요소는 iOS에서 자�
 <header>
   <div>
     <span class="h-logo">APL Motion Coach <span class="accent">3D</span></span>
-    <span class="h-ver">v67</span>
+    <span class="h-ver">v68</span>
   </div>
   <div class="h-right">
     <button id="prm-badge" class="free">FREE</button>
@@ -618,6 +618,8 @@ function _errToast(msg,bg){ // v65: bg 지정 시 정보 토스트(파랑) — �
   }
   el.style.background=bg||'rgba(190,30,30,.93)';
   el.textContent=(bg?'ℹ ':'⚠ ')+msg+' (탭=닫기)';
+  clearTimeout(el._hideTO);
+  if(bg)el._hideTO=setTimeout(()=>{try{el.remove();}catch(e){}},4000); // v68: 정보 토스트 4초 자동 닫힘 (빨간 오류는 유지)
 }
 const _recInfo=m=>_errToast(m,'rgba(30,90,160,.93)'); // v65: 녹화 진단 (원인 확정 후 제거 예정)
 window.addEventListener('error',e=>_errToast((e.message||'script error')+(e.lineno?' @line '+e.lineno:'')));
