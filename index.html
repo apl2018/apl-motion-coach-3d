@@ -170,7 +170,7 @@ video{touch-action:none} /* 더블탭 줌 방지: video 요소는 iOS에서 자�
 <header>
   <div>
     <span class="h-logo">APL Motion Coach <span class="accent">3D</span></span>
-    <span class="h-ver">v72</span>
+    <span class="h-ver">v73</span>
   </div>
   <div class="h-right">
     <button id="prm-badge" class="free">FREE</button>
@@ -240,7 +240,7 @@ video{touch-action:none} /* 더블탭 줌 방지: video 요소는 iOS에서 자�
   </div>
   <div id="vid-wrap">
     <video id="vid2" muted playsinline></video>
-    <video id="vid" autoplay muted playsinline></video>
+    <video id="vid" muted playsinline></video><!-- v73: autoplay 제거 — 파일은 일시정지 표시, 카메라는 start_ana에서 play() -->
     <canvas id="cvs"></canvas>
     <div id="load-overlay">
       <div class="spinner"></div>
@@ -925,6 +925,10 @@ function setMode(mode,file){
     const url=URL.createObjectURL(file);
     vid.srcObject=null;vid.src=url;vid.load();
     vid.classList.add('show'); // 파일 로드 시 영상 프레임 표시
+    // v73: 자동 재생 안 함 — 첫 프레임에서 일시정지 상태로 대기 (슬라이더로 탐색 후 ▶ 시작)
+    const _showFirst=()=>{vid.pause();try{vid.currentTime=0;}catch(e){}vid.removeEventListener('loadeddata',_showFirst);};
+    vid.addEventListener('loadeddata',_showFirst);
+    vid.pause();
   }
 }
 
