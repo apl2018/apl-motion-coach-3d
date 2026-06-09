@@ -170,7 +170,7 @@ video{touch-action:none} /* 더블탭 줌 방지: video 요소는 iOS에서 자�
 <header>
   <div>
     <span class="h-logo">APL Motion Coach <span class="accent">3D</span></span>
-    <span class="h-ver">v75</span>
+    <span class="h-ver">v76</span>
   </div>
   <div class="h-right">
     <button id="prm-badge" class="free">FREE</button>
@@ -834,6 +834,8 @@ function events(){
     if(live)stop_ana();
     try{vid2.pause();vid2.removeAttribute('src');vid2.load();}catch(e){}
     if(_vid2URL){try{URL.revokeObjectURL(_vid2URL);}catch(e){}_vid2URL=null;} // v75
+    // v76: B 디텍터(GPU 컨텍스트) 실제 해제 — 비교 후 단일 분석까지 누적 압박되던 원인
+    if(detB){try{detB.close();}catch(e){}detB=null;}
     vid2.classList.remove('cmp-on');
     compareMode=false;vid2Loaded=false;cmpStartB=0;
     $('vid-wrap').classList.remove('cmp-on');
@@ -961,8 +963,16 @@ function _resetRunState(){
   try{hideSaveChip();}catch(e){} // v70: 이전 분석의 잔여 "탭해서 저장" 칩 제거 (반복 분석 시 누적 방지)
   fN=0;fT=performance.now();
 }
+// v76: 분석 시작 전 떠도는 루프·캡처 정리 — 빠른 재시작/모드전환 시 rAF 루프나 녹화 펌프가
+// 중첩되어 매 프레임 detect 호출이 누적(끊김·프레임드롭·점프 과소측정)되던 것을 방지
+function _hardStopLoops(){
+  if(raf){cancelAnimationFrame(raf);raf=null;}
+  precRun=false;
+  if(_compInterval){clearInterval(_compInterval);_compInterval=null;}
+}
 async function start_ana(){
   if(!det){alert('모델 로딩 중입니다.');return;}
+  _hardStopLoops(); // v76
   if(src==='camera'){
     try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}},audio:false});vid.srcObject=stream;vid.removeAttribute('src');await vid.play();}
     catch(e1){try{stream=await navigator.mediaDevices.getUserMedia({video:true,audio:false});vid.srcObject=stream;await vid.play();}catch(e2){alert('카메라 오류: '+e2.message);return;}}
@@ -1042,6 +1052,7 @@ async function precise_ana(){
   setRefMsg(lang==='ko'?'🎯 정밀 모델 준비 중...':'Preparing...','var(--cyan)');
   try{await _loadModelP();}catch(e){_errToast('정밀 모델 로드 실패: '+(e&&e.message||e));return;}
   if(live)stop_ana();
+  _hardStopLoops(); // v76: 떠도는 루프 정리
   vid.pause();
   precRun=true;live=true;isPaused=false;
   _resetRunState();
